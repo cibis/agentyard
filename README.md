@@ -165,6 +165,14 @@ Agents have **full permissions inside their container** and **zero access outsid
 
 ---
 
+## Roadmap
+
+- **Custom agents in Paperclip** — first-party agents built and registered directly in Paperclip, alongside the existing openclaw/opencode setup.
+- **Custom adapters** — purpose-built adapters to connect agents to external data sources, APIs, and services beyond the current skill system.
+- **LangGraph.js-powered agents** — new agents implemented with [LangGraph.js](https://github.com/langchain-ai/langgraphjs) for structured, graph-based agentic workflows with explicit state machines and controlled execution flow, replacing ad-hoc prompt chaining.
+
+---
+
 ## Documentation
 
 - [docs/SETUP.md](docs/SETUP.md) — step-by-step setup from scratch
