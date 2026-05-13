@@ -1,0 +1,37 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "port": 18789,
+    "auth": {
+      "mode": "token"
+    }
+  },
+  "models": {
+    "providers": {
+      "amazon-bedrock": {
+        "api": "bedrock-converse-stream",
+        "auth": "aws-sdk",
+        "baseUrl": "https://bedrock-runtime.us-east-1.amazonaws.com",
+        "models": [
+          { "id": "us.amazon.nova-2-lite-v1:0", "name": "Amazon Nova 2 Lite" }
+        ]
+      },
+      "anthropic": {
+        "baseUrl": "https://api.anthropic.com",
+        "api": "anthropic-messages",
+        "models": [
+          { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "maxTokens": 16384, "contextWindow": 200000 }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": "amazon-bedrock/us.amazon.nova-2-lite-v1:0",
+      "sandbox": {
+        "mode": "off"
+      }
+    }
+  }
+}

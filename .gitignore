@@ -1,0 +1,12 @@
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Runtime exchange files — operational data, not source
+shared/
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

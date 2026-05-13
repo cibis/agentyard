@@ -1,0 +1,131 @@
+networks:
+  agent-net:
+    driver: bridge
+
+volumes:
+  openclaw-workspace:
+  opencode-workspace:
+  agent-exchange:
+
+services:
+
+  openclaw:
+    image: openclaw:local
+    build:
+      context: ../openclaw
+    container_name: openclaw
+    restart: unless-stopped
+    networks:
+      - agent-net
+    ports:
+      - "18789:18789"
+      - "9080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env
+    environment:
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - OPENCLAW_CONFIG_PATH=/config/openclaw.json
+      - OPENCLAW_ALLOW_ROOT=1
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_REGION_NAME=${AWS_REGION_NAME}
+    user: root
+    cap_add:
+      - ALL
+    cap_drop:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+      - no-new-privileges:false
+    ipc: private
+    pids_limit: -1
+    shm_size: "2gb"
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+      nproc: -1
+      memlock: -1
+      core: -1
+    volumes:
+      - ./config/openclaw.json:/config/openclaw.json:ro
+      - ./skills:/app/skills/agentyard:ro
+      - openclaw-workspace:/root/.openclaw/workspace
+      - ./shared:/exchange
+      - agent-exchange:/agent-exchange
+    command: ["node", "openclaw.mjs", "gateway", "--bind", "lan", "--port", "18789"]
+    healthcheck:
+      test: ["CMD", "node", "-e",
+        "fetch('http://127.0.0.1:18789/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  opencode:
+    image: opencode:local
+    build:
+      context: ../opencode
+    container_name: opencode
+    restart: unless-stopped
+    networks:
+      - agent-net
+    ports:
+      - "9081:8080"
+      - "2223:22"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - .env
+    environment:
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - OPENCODE_SSH_PASS=${OPENCODE_SSH_PASS}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+      - AWS_REGION_NAME=${AWS_REGION_NAME}
+    user: root
+    cap_add:
+      - ALL
+    cap_drop:
+      - SYS_ADMIN
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+      - no-new-privileges:false
+    ipc: private
+    pids_limit: -1
+    shm_size: "2gb"
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+      nproc: -1
+      memlock: -1
+      core: -1
+    volumes:
+      - ./config/opencode.jsonc:/workspace/.opencode/opencode.jsonc:ro
+      - opencode-workspace:/workspace
+      - ./shared:/exchange
+      - agent-exchange:/agent-exchange
+    healthcheck:
+      test: ["CMD", "pgrep", "-x", "sshd"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3

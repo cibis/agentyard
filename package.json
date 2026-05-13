@@ -1,0 +1,5 @@
+{
+  "name": "agentyard",
+  "version": "0.1.0-alpha",
+  "description": "Local self-hosted AI orchestration stack (openclaw + opencode + paperclip)"
+}
