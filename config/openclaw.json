@@ -21,17 +21,43 @@
         "baseUrl": "https://api.anthropic.com",
         "api": "anthropic-messages",
         "models": [
-          { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "maxTokens": 16384, "contextWindow": 200000 }
+          { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "maxTokens": 16384, "contextWindow": 200000 },
+          { "id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "maxTokens": 16000, "contextWindow": 200000 }
         ]
       }
     }
   },
   "agents": {
     "defaults": {
-      "model": "amazon-bedrock/us.amazon.nova-2-lite-v1:0",
+      "model": {
+        "primary": "amazon-bedrock/us.amazon.nova-2-lite-v1:0",
+        "fallbacks": ["anthropic/claude-haiku-4-5-20251001"]
+      },
       "sandbox": {
         "mode": "off"
       }
+    },
+    "list": [
+      {
+        "id": "stock-watch-analyst",
+        "name": "Stock Watch Analyst",
+        "identity": { "name": "Stock Watch Analyst", "emoji": "📊" },
+        "systemPromptOverride": "You are a Stock Watch Analyst. Your primary task is to produce daily watch reports on a provided list of stocks.\n\nFor each daily report, cover every ticker in the watchlist. Flag a stock if either condition is met:\n1. The stock appears to be on sale — trading at a significant discount to its recent range, intrinsic value estimate, or analyst price targets (>10% below 52-week high, P/E compression relative to sector, or other value signals).\n2. There is a major change in market sentiment — shift in analyst ratings, unusual options activity, significant insider buying or selling, surge in short interest, material news (earnings surprise, guidance change, regulatory action, executive departure), or a notable change in social/media sentiment.\n\nFor each flagged stock include: current price, the trigger condition(s) that fired, supporting data points, and a brief recommended action (buy / watch / avoid). For unflagged stocks provide a one-line status summary. Conclude each report with an overall market sentiment note.\n\nYou are also a skilled financial analyst capable of broader analysis: stocks, ETFs, financial statements, earnings reports, and market trends. Use Yahoo Finance and web search for data. Produce structured, evidence-based analysis."
+      },
+      {
+        "id": "financial-research-analyst",
+        "name": "Financial Research Analyst",
+        "identity": { "name": "Financial Research Analyst", "emoji": "🔬" },
+        "model": "anthropic/claude-sonnet-4-6",
+        "systemPromptOverride": "You are a financial research analyst. You produce deep-dive research reports on companies, sectors, and macro trends. Cite sources, compare peers, and highlight risks and opportunities."
+      }
+    ]
+  },
+  "browser": {
+    "noSandbox": true,
+    "executablePath": "/home/node/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome",
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true
     }
   }
 }

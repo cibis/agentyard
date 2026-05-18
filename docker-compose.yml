@@ -13,13 +13,16 @@ services:
     image: openclaw:local
     build:
       context: ../openclaw
+      args:
+        OPENCLAW_INSTALL_BROWSER: "1"
+        OPENCLAW_DOCKER_APT_PACKAGES: "wget vim nano less jq python3-pip build-essential htop net-tools iputils-ping bind9-dnsutils unzip zip"
     container_name: openclaw
     restart: unless-stopped
     networks:
       - agent-net
     ports:
       - "18789:18789"
-      - "9080:8080"
+      - "9080:9080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     dns:
@@ -38,6 +41,10 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - AWS_REGION_NAME=${AWS_REGION_NAME}
+      - PAPERCLIP_API_KEY=${PAPERCLIP_API_KEY}
+      - PAPERCLIP_API_URL=${PAPERCLIP_API_URL}
+      - PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright
+      - OPENCLAW_EXTRA_MEDIA_ROOTS=/exchange/outbox/openclaw/screenshots
     user: root
     cap_add:
       - ALL
@@ -61,6 +68,7 @@ services:
       - ./config/openclaw.json:/config/openclaw.json:ro
       - ./skills:/app/skills/agentyard:ro
       - openclaw-workspace:/root/.openclaw/workspace
+      - ./config/openclaw-workspace/AGENTS.md:/root/.openclaw/workspace/AGENTS.md:ro
       - ./shared:/exchange
       - agent-exchange:/agent-exchange
     command: ["node", "openclaw.mjs", "gateway", "--bind", "lan", "--port", "18789"]
@@ -81,7 +89,7 @@ services:
     networks:
       - agent-net
     ports:
-      - "9081:8080"
+      - "9081:9081"
       - "2223:22"
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -119,10 +127,36 @@ services:
       memlock: -1
       core: -1
     volumes:
-      - ./config/opencode.jsonc:/workspace/.opencode/opencode.jsonc:ro
+      - ./config/opencode.jsonc:/root/.config/opencode/opencode.jsonc:ro
+      - ./skills/opencode/AGENTS.md:/root/.config/opencode/AGENTS.md:ro
+      - ./skills/opencode/SKILL.md:/workspace/serve-conventions.md:ro
+      - ./skills/conventions/SKILL.md:/workspace/conventions.md:ro
+      - ./skills/file-exchange/SKILL.md:/workspace/file-exchange-conventions.md:ro
       - opencode-workspace:/workspace
       - ./shared:/exchange
       - agent-exchange:/agent-exchange
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "root:${OPENCODE_SSH_PASS:-opencode}" | chpasswd
+        printf 'export ANTHROPIC_API_KEY="%s"\nexport AWS_ACCESS_KEY_ID="%s"\nexport AWS_SECRET_ACCESS_KEY="%s"\nexport AWS_REGION="%s"\nexport AWS_DEFAULT_REGION="%s"\n' \
+          "$$ANTHROPIC_API_KEY" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" "$$AWS_REGION" "$$AWS_DEFAULT_REGION" \
+          >> /root/.bashrc
+        if [ -f /exchange/outbox/opencode/serve/server.js ]; then
+          node /exchange/outbox/opencode/serve/server.js &
+          SERVER_PID=$$!
+          if [ -f /exchange/outbox/opencode/serve-process.json ]; then
+            node -e "
+              const fs=require('fs');
+              const d=JSON.parse(fs.readFileSync('/exchange/outbox/opencode/serve-process.json'));
+              d.server.pid=$$SERVER_PID;
+              d.server.started_at=new Date().toISOString();
+              fs.writeFileSync('/exchange/outbox/opencode/serve-process.json',JSON.stringify(d,null,2));
+            "
+          fi
+        fi
+        exec /usr/sbin/sshd -D
     healthcheck:
       test: ["CMD", "pgrep", "-x", "sshd"]
       interval: 30s

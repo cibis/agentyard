@@ -4,8 +4,8 @@
 
 A local self-hosted AI orchestration stack running in Docker on this Windows 11 machine. Three components work together:
 
-- **openclaw** — Node.js AI agent/gateway (port 18789). Accepts tasks from Paperclip, runs them using AWS Bedrock or Anthropic models, has built-in web search (Brave) and a skill system.
-- **opencode** — Bun-based coding agent (SSH on port 2223). A sandboxed coding environment reachable via SSH. Uses Anthropic Claude Haiku by default.
+- **openclaw** — Node.js AI agent/gateway (port 18789). Accepts tasks from Paperclip, runs them using AWS Bedrock or Anthropic models, has built-in web search (Brave) and a skill system. Web preview at `http://localhost:9080` (agent starts any server on container port 9080).
+- **opencode** — Bun-based coding agent (SSH on port 2223). A sandboxed coding environment reachable via SSH. Uses Anthropic Claude Haiku by default. Web preview at `http://localhost:9081` — served content follows the convention in `skills/opencode/SKILL.md` (all files under `/exchange/outbox/opencode/serve/`, registry at `serve-process.json`, auto-restarts on container restart).
 - **paperclip** — Orchestrator running on the host (not in Docker). Routes tasks to openclaw/opencode agents.
 
 Model providers: **AWS Bedrock** (primary) and **Anthropic** (secondary). No local Ollama.
@@ -15,8 +15,8 @@ Model providers: **AWS Bedrock** (primary) and **Anthropic** (secondary). No loc
 Both Docker containers are healthy and running.
 
 ```
-openclaw   healthy   0.0.0.0:18789->18789/tcp, 0.0.0.0:9080->8080/tcp
-opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->8080/tcp
+openclaw   healthy   0.0.0.0:18789->18789/tcp, 0.0.0.0:9080->9080/tcp
+opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->9081/tcp
 ```
 
 ## Key Files
@@ -28,7 +28,10 @@ opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->8080/tcp
 | `config/openclaw.json` | openclaw config: Bedrock + Anthropic providers, gateway auth, agent defaults |
 | `config/opencode.jsonc` | opencode config: Anthropic provider, Haiku as default model |
 | `skills/yahoo-finance/SKILL.md` | Custom skill teaching openclaw to use Yahoo Finance API |
-| `shared/` | File exchange directory bind-mounted into both containers at `/exchange` |
+| `skills/opencode/SKILL.md` | opencode serve conventions — paths, serve-process.json schema, prompt templates; mounted into opencode at `/workspace/serve-conventions.md` |
+| `skills/conventions/SKILL.md` | Canonical path reference for all agents (inbox/outbox/scratch per agent); mounted into opencode at `/workspace/conventions.md` |
+| `skills/file-exchange/SKILL.md` | Full file exchange rules and prompt templates for openclaw; also mounted into opencode at `/workspace/file-exchange-conventions.md` |
+| `shared/` | File exchange data directory bind-mounted into both containers at `/exchange` |
 
 ## Models
 
@@ -40,6 +43,21 @@ opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->8080/tcp
 openclaw default: `amazon-bedrock/us.amazon.nova-2-lite-v1:0`
 openclaw secondary: `anthropic/claude-haiku-4-5-20251001`
 opencode default: `anthropic/claude-haiku-4-5-20251001`
+
+## Web Preview Ports
+
+Agents can serve files or web UIs by starting an HTTP server on the container's preview port. The same port number is used on both the host and container — no remapping.
+
+| Agent | Container port | Host URL |
+|-------|---------------|----------|
+| openclaw | 9080 | `http://localhost:9080` |
+| opencode | 9081 | `http://localhost:9081` |
+
+Example (inside opencode container via SSH):
+```sh
+python3 -m http.server 9081 --directory /workspace
+# then open http://localhost:9081 in your browser
+```
 
 ## Credentials & Access
 
@@ -130,6 +148,19 @@ The key `~/.ssh/id_opencode` must NOT have a passphrase (non-interactive use). T
 Both containers mount:
 - `./shared` → `/exchange` (host bind mount, for file-based agent communication)
 - Docker volume `agent-exchange` → `/agent-exchange` (container-to-container exchange)
+
+Directory layout under `shared/` (i.e. `/exchange/` inside containers):
+
+| Path                         | Purpose                                          |
+|------------------------------|--------------------------------------------------|
+| `inbox/openclaw/`            | Tasks and input files sent to openclaw           |
+| `inbox/opencode/`            | Tasks and input files sent to opencode           |
+| `outbox/openclaw/`           | Final results produced by openclaw               |
+| `outbox/opencode/`           | Final results produced by opencode               |
+| `scratch/openclaw/`          | Ephemeral work-in-progress files for openclaw    |
+| `scratch/opencode/`          | Ephemeral work-in-progress files for opencode    |
+
+Prompt templates and path-translation rules for every agent × use-case are in `skills/file-exchange/SKILL.md`.
 
 ## openclaw Config Reference
 

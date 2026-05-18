@@ -3,5 +3,11 @@
   "provider": {
     "anthropic": {}
   },
-  "model": "anthropic/claude-haiku-4-5-20251001"
+  "model": "anthropic/claude-haiku-4-5-20251001",
+  "permission": "allow",
+  "instructions": [
+    "/workspace/conventions.md",
+    "/workspace/serve-conventions.md",
+    "/workspace/file-exchange-conventions.md"
+  ]
 }

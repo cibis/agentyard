@@ -174,5 +174,5 @@ Agents have **full permissions inside their container** and **zero access outsid
 
 ## Documentation
 
-- [docs/SETUP.md](docs/SETUP.md) — step-by-step setup from scratch
-- [docs/INTERFACES.md](docs/INTERFACES.md) — API reference for all components
+- [docs/setup.md](docs/setup.md) — step-by-step setup from scratch
+- [docs/interfaces.md](docs/interfaces.md) — API reference for all components
