@@ -67,7 +67,7 @@ This project builds openclaw, opencode, and paperclip from source. All three mus
 ```
 parent-dir/
 ├── agentyard/   ← git clone https://github.com/cibis/agentyard
-├── openclaw/    ← git clone -b agentyard-customizations https://github.com/cibis/openclaw
+├── openclaw/    ← git clone https://github.com/cibis/openclaw
 ├── opencode/    ← git clone https://github.com/cibis/opencode
 └── paperclip/   ← git clone https://github.com/cibis/paperclip
 ```
@@ -75,12 +75,12 @@ parent-dir/
 ```powershell
 # From the parent directory that will contain all repos
 git clone https://github.com/cibis/agentyard
-git clone -b agentyard-customizations https://github.com/cibis/openclaw
+git clone https://github.com/cibis/openclaw
 git clone https://github.com/cibis/opencode
 git clone https://github.com/cibis/paperclip
 ```
 
-> **Note on the openclaw fork:** The `agentyard-customizations` branch contains local patches on top of [openclaw/openclaw](https://github.com/openclaw/openclaw) (UI and media tweaks). To pick up future upstream openclaw releases, fetch from `upstream` and rebase the customizations branch: `git fetch upstream && git rebase upstream/main`.
+> **Note on forks:** `cibis/openclaw` and `cibis/paperclip` are forks of [openclaw/openclaw](https://github.com/openclaw/openclaw) and [paperclipai/paperclip](https://github.com/paperclipai/paperclip) respectively, with agentyard-specific patches committed on top of `main`/`master`. To pick up future upstream releases, fetch from `upstream` and rebase: `git fetch upstream && git rebase upstream/main`.
 
 The `docker-compose.yml` build contexts and Paperclip launch commands all reference these as `../openclaw`, `../opencode`, and `../paperclip`.
 
