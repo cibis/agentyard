@@ -62,7 +62,7 @@ The architecture is general-purpose — any task that benefits from sandboxed ag
 
 ### Required repos
 
-This project builds openclaw, opencode, and paperclip from source. All three must be cloned as **sibling directories** next to `agentyard`:
+All four repos must exist as **sibling directories** under a common parent. `docker-compose.yml` and Paperclip launch commands reference them as `../openclaw`, `../opencode`, and `../paperclip`.
 
 ```
 parent-dir/
@@ -76,13 +76,26 @@ parent-dir/
 # From the parent directory that will contain all repos
 git clone https://github.com/cibis/agentyard
 git clone https://github.com/cibis/openclaw
-git clone https://github.com/cibis/opencode
+git clone https://github.com/cibis/opencode    # default branch: dev
 git clone https://github.com/cibis/paperclip
 ```
 
-> **Note on forks:** `cibis/openclaw` and `cibis/paperclip` are forks of [openclaw/openclaw](https://github.com/openclaw/openclaw) and [paperclipai/paperclip](https://github.com/paperclipai/paperclip) respectively, with agentyard-specific patches committed on top of `main`/`master`. To pick up future upstream releases, fetch from `upstream` and rebase: `git fetch upstream && git rebase upstream/main`.
+All three sibling repos are forks with agentyard-specific patches on top of their upstream default branch:
 
-The `docker-compose.yml` build contexts and Paperclip launch commands all reference these as `../openclaw`, `../opencode`, and `../paperclip`.
+| Fork | Upstream | Patches on branch |
+|---|---|---|
+| [cibis/openclaw](https://github.com/cibis/openclaw) | [openclaw/openclaw](https://github.com/openclaw/openclaw) | `main` |
+| [cibis/opencode](https://github.com/cibis/opencode) | [anomalyco/opencode](https://github.com/anomalyco/opencode) | `dev` |
+| [cibis/paperclip](https://github.com/cibis/paperclip) | [paperclipai/paperclip](https://github.com/paperclipai/paperclip) | `master` |
+
+To pick up a future upstream release for any fork, fetch from `upstream` and rebase:
+```powershell
+# openclaw (main) / opencode (dev)
+git fetch upstream && git rebase upstream/main   # or upstream/dev for opencode
+
+# paperclip
+git fetch upstream && git rebase upstream/master
+```
 
 ---
 
