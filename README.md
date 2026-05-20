@@ -40,6 +40,22 @@ The architecture is general-purpose — any task that benefits from sandboxed ag
 | Custom UI dashboards | opencode builds and serves a web app on the preview port |
 | Portfolio tracking | File exchange between agents and Paperclip via `/exchange` |
 
+### Test setup — Stock Advisory Portal
+
+The bootstrap process in [docs/examples/bootstrap.md](docs/examples/bootstrap.md) was run end-to-end as a reference test. The CEO agent delegated the portal build task to the Full Stack Developer agent (opencode), which autonomously built and deployed a 6-screen **Stock Advisory Portal** at `http://localhost:9081/stock-portal/`:
+
+- **Alert Dashboard** — reads latest `daily-alert-*.md` report from openclaw outbox
+- **Watchlist Manager** — reads `approved_stocks.md` (28 active tickers on first deploy)
+- **Approval Queue** — reads pending board approvals from Paperclip
+- **Screening Reports** — lists all `weekly-screen-*.md` files
+- **Portfolio Tracker** — tracks positions and performance
+- **Earnings Calendar** — upcoming earnings for watchlist tickers
+
+The portal is served by `server.js` (Node.js built-ins only, no npm) with 8 API routes, registered as `stock-portal` in `serve-process.json`. The Paperclip task (MIN-9) closed automatically once the agent verified the portal was accessible and posted the URL as a comment.
+
+![MIN-9 closed by CEO agent](docs/screenshots/min9-paperclip-done.jpg)
+![Stock Advisory Portal — Watchlist Manager](docs/screenshots/stock-portal-watchlist.jpg)
+
 ---
 
 ## Architecture
@@ -111,10 +127,17 @@ docker compose up -d --build
 # 3. Verify both containers are healthy
 docker compose ps
 
-# 4. Set up SSH access to opencode
+# 4. Generate the SSH key for opencode (one-time, no passphrase)
+#    The public key in docker-compose.yml must match — see Architecture Decisions below
 ssh-keygen -t ed25519 -C "opencode-key" -f "$env:USERPROFILE\.ssh\id_opencode" -N '""'
-$pubkey = (Get-Content "$env:USERPROFILE\.ssh\id_opencode.pub" -Raw).Trim()
-docker exec opencode sh -c "echo '$pubkey' > /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys"
+# Copy the public key output to the printf line in docker-compose.yml (opencode command block)
+# Then add to ~/.ssh/config:
+#   Host opencode
+#       HostName localhost
+#       Port 2223
+#       User root
+#       IdentityFile ~/.ssh/id_opencode
+#       StrictHostKeyChecking no
 
 # 5. Start Paperclip on the host
 cd ..\paperclip && pnpm install && pnpm dev
@@ -134,17 +157,34 @@ agentyard/
 ├── .env                      # Secrets (never commit this)
 ├── config/
 │   ├── openclaw.json         # openclaw gateway + model config
-│   └── opencode.jsonc        # opencode provider config
+│   ├── opencode.jsonc        # opencode provider config
+│   └── openclaw-workspace/
+│       └── AGENTS.md         # Base workspace instructions for all openclaw agents
 ├── skills/
-│   └── yahoo-finance/
-│       └── SKILL.md          # Yahoo Finance skill (mounted into openclaw)
+│   ├── yahoo-finance/SKILL.md      # Yahoo Finance skill (openclaw)
+│   ├── opencode/SKILL.md           # Serve conventions (mounted into opencode)
+│   ├── conventions/SKILL.md        # Path conventions (mounted into opencode)
+│   └── file-exchange/SKILL.md      # File exchange rules (openclaw + opencode)
 ├── shared/                   # Bind-mounted into both containers at /exchange
-│   ├── inbox/                # Drop files here for agents to read
+│   ├── inbox/openclaw/
+│   │   ├── approved_stocks.md      # Active watchlist (human-editable)
+│   │   └── screening_criteria.md   # Screening filters (human-editable)
 │   ├── outbox/               # Agents write results here
-│   └── workspace/            # Collaborative working area
+│   ├── scratch/              # Ephemeral working files
+│   └── workspace/
+│       ├── openclaw/
+│       │   ├── stock-watch-analyst/AGENTS.md
+│       │   └── financial-research-analyst/AGENTS.md
+│       └── opencode/
+│           └── AGENTS.md           # FullStack Dev domain context
 └── docs/
-    ├── SETUP.md              # Full setup guide
-    └── INTERFACES.md         # API and interface reference
+    ├── ops-reference.md      # Stack debugging and ops reference
+    ├── setup.md              # Full setup guide
+    ├── interfaces.md         # API and interface reference
+    └── examples/
+        ├── bootstrap.md                    # First-run checklist
+        ├── paperclip-task-build-portal.md  # Portal build task template
+        └── paperclip-task-setup-routines.md # Routine setup task template
 ```
 
 ---
@@ -154,6 +194,16 @@ agentyard/
 Drop a `SKILL.md` file under `skills/<name>/SKILL.md` — no restart needed. The skill is live-mounted at `/app/skills/agentyard/` inside the container and scanned on every request.
 
 See [skills/yahoo-finance/SKILL.md](skills/yahoo-finance/SKILL.md) for a working example.
+
+---
+
+## Architecture decisions
+
+### openclaw version pin
+`../openclaw` is pinned to commit `2949171fcc` (v2026.5.3, protocol v3) because Paperclip's openclaw-gateway adapter hardcodes protocol v3. Upgrading openclaw past v2026.5.4 breaks all agent connections until the Paperclip adapter is updated to match. Check `../paperclip/packages/adapters/openclaw-gateway/src/server/execute.ts` (`PROTOCOL_VERSION`) vs `../openclaw/src/gateway/protocol/version.ts` (`MIN_CLIENT_PROTOCOL_VERSION`) before upgrading.
+
+### opencode SSH authorized_keys
+The SSH public key for opencode is baked into the startup command in `docker-compose.yml`. It is written using `printf` on every container boot, so `--force-recreate` does not break SSH access. If you regenerate `~/.ssh/id_opencode`, update the `printf` line in the opencode `command` block and rebuild/recreate the container. Never use `echo` or PowerShell piping to write SSH keys — BOM characters break key parsing.
 
 ---
 
@@ -190,5 +240,7 @@ Agents have **full permissions inside their container** and **zero access outsid
 
 ## Documentation
 
+- [docs/ops-reference.md](docs/ops-reference.md) — stack debugging and ops reference (Paperclip API, DB, containers)
 - [docs/setup.md](docs/setup.md) — step-by-step setup from scratch
 - [docs/interfaces.md](docs/interfaces.md) — API reference for all components
+- [docs/examples/](docs/examples/) — reusable Paperclip task templates and bootstrap checklist

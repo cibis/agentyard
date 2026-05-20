@@ -19,6 +19,12 @@ openclaw   healthy   0.0.0.0:18789->18789/tcp, 0.0.0.0:9080->9080/tcp
 opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->9081/tcp
 ```
 
+### Version pins and known constraints
+
+- **openclaw is pinned to commit `2949171fcc` (v2026.5.3)** — detached HEAD in `../openclaw`. Reason: Paperclip's openclaw-gateway adapter hardcodes `PROTOCOL_VERSION = 3` in `../paperclip/packages/adapters/openclaw-gateway/src/server/execute.ts`. openclaw ≥ 2026.5.17 requires protocol v4. Do not run `git pull` or `git checkout main` in `../openclaw` without first updating the adapter or it will break all openclaw agents.
+- **opencode Dockerfile uses `oven/bun:1.3.14`** — required by opencode's build script (`bun@^1.3.14`). Do not downgrade.
+- **opencode SSH `authorized_keys` is written by `docker-compose.yml`** — no manual setup needed. The startup command uses `printf` (not `echo`) to write the key cleanly on every boot, surviving `--force-recreate`.
+
 ## Key Files
 
 | File | Purpose |
@@ -32,6 +38,13 @@ opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->9081/tcp
 | `skills/conventions/SKILL.md` | Canonical path reference for all agents (inbox/outbox/scratch per agent); mounted into opencode at `/workspace/conventions.md` |
 | `skills/file-exchange/SKILL.md` | Full file exchange rules and prompt templates for openclaw; also mounted into opencode at `/workspace/file-exchange-conventions.md` |
 | `shared/` | File exchange data directory bind-mounted into both containers at `/exchange` |
+| `shared/workspace/openclaw/stock-watch-analyst/AGENTS.md` | Stock Watch Analyst agent identity and task instructions |
+| `shared/workspace/openclaw/financial-research-analyst/AGENTS.md` | Financial Research Analyst agent identity and task instructions |
+| `shared/workspace/opencode/AGENTS.md` | FullStack Dev (opencode) domain context and portal architecture |
+| `shared/inbox/openclaw/approved_stocks.md` | Active watchlist for the Stock Watch Analyst (human-editable) |
+| `shared/inbox/openclaw/screening_criteria.md` | Screening filters and thresholds for the Financial Research Analyst (human-editable) |
+| `docs/ops-reference.md` | Full debugging and ops reference: Paperclip API, DB, containers, discovery patterns |
+| `docs/examples/` | Reusable task templates: portal build, routine setup, bootstrap checklist |
 
 ## Models
 
@@ -119,6 +132,9 @@ docker exec openclaw sh -c "curl -s https://api.anthropic.com/v1/models -H 'x-ap
 
 ## Architecture Decisions (Important)
 
+### openclaw — Version pin (IMPORTANT)
+openclaw source at `../openclaw` is on a **detached HEAD at commit `2949171fcc`** (v2026.5.3). Do not `git pull` or `git checkout main`. If you need to upgrade, first update `PROTOCOL_VERSION` in `../paperclip/packages/adapters/openclaw-gateway/src/server/execute.ts` to match the new version's `MIN_CLIENT_PROTOCOL_VERSION` in `../openclaw/src/gateway/protocol/version.ts`.
+
 ### openclaw — Never modify the Dockerfile
 openclaw's Dockerfile at `../openclaw/Dockerfile` must not be modified. The correct ways to extend openclaw:
 1. **Web search**: Brave plugin is built-in, auto-enabled when `BRAVE_API_KEY` env var is set.
@@ -144,6 +160,8 @@ opencode has no upstream Dockerfile. The one at `../opencode/Dockerfile` was cre
 ### SSH key for opencode
 The key `~/.ssh/id_opencode` must NOT have a passphrase (non-interactive use). The current key was regenerated without a passphrase after discovering the original was encrypted.
 
+The public key is baked into `docker-compose.yml` — the startup command writes it to `/root/.ssh/authorized_keys` using `printf` on every container boot. **Never use `echo` or PowerShell piping to write SSH keys** — they produce UTF-8 BOM characters that break SSH key parsing. If you regenerate the key, update the `printf` line in the opencode `command` block in `docker-compose.yml` with the new public key.
+
 ### Shared file exchange
 Both containers mount:
 - `./shared` → `/exchange` (host bind mount, for file-based agent communication)
@@ -151,14 +169,19 @@ Both containers mount:
 
 Directory layout under `shared/` (i.e. `/exchange/` inside containers):
 
-| Path                         | Purpose                                          |
-|------------------------------|--------------------------------------------------|
-| `inbox/openclaw/`            | Tasks and input files sent to openclaw           |
-| `inbox/opencode/`            | Tasks and input files sent to opencode           |
-| `outbox/openclaw/`           | Final results produced by openclaw               |
-| `outbox/opencode/`           | Final results produced by opencode               |
-| `scratch/openclaw/`          | Ephemeral work-in-progress files for openclaw    |
-| `scratch/opencode/`          | Ephemeral work-in-progress files for opencode    |
+| Path                                      | Purpose                                                  |
+|-------------------------------------------|----------------------------------------------------------|
+| `inbox/openclaw/`                         | Tasks and input files sent to openclaw                   |
+| `inbox/openclaw/approved_stocks.md`       | Active watchlist — human-editable                        |
+| `inbox/openclaw/screening_criteria.md`    | Screening filters and thresholds — human-editable        |
+| `inbox/opencode/`                         | Tasks and input files sent to opencode                   |
+| `outbox/openclaw/`                        | Final results produced by openclaw                       |
+| `outbox/opencode/`                        | Final results produced by opencode                       |
+| `outbox/opencode/serve/`                  | opencode web server: server.js, www/, serve-process.json |
+| `scratch/openclaw/`                       | Ephemeral work-in-progress files for openclaw            |
+| `scratch/opencode/`                       | Ephemeral work-in-progress files for opencode            |
+| `workspace/openclaw/<agent>/AGENTS.md`    | Per-agent workspace instructions (mounted read-only)     |
+| `workspace/opencode/AGENTS.md`            | opencode domain context (mounted at /workspace/AGENTS.md)|
 
 Prompt templates and path-translation rules for every agent × use-case are in `skills/file-exchange/SKILL.md`.
 

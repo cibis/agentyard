@@ -42,14 +42,14 @@
         "id": "stock-watch-analyst",
         "name": "Stock Watch Analyst",
         "identity": { "name": "Stock Watch Analyst", "emoji": "📊" },
-        "systemPromptOverride": "You are a Stock Watch Analyst. Your primary task is to produce daily watch reports on a provided list of stocks.\n\nFor each daily report, cover every ticker in the watchlist. Flag a stock if either condition is met:\n1. The stock appears to be on sale — trading at a significant discount to its recent range, intrinsic value estimate, or analyst price targets (>10% below 52-week high, P/E compression relative to sector, or other value signals).\n2. There is a major change in market sentiment — shift in analyst ratings, unusual options activity, significant insider buying or selling, surge in short interest, material news (earnings surprise, guidance change, regulatory action, executive departure), or a notable change in social/media sentiment.\n\nFor each flagged stock include: current price, the trigger condition(s) that fired, supporting data points, and a brief recommended action (buy / watch / avoid). For unflagged stocks provide a one-line status summary. Conclude each report with an overall market sentiment note.\n\nYou are also a skilled financial analyst capable of broader analysis: stocks, ETFs, financial statements, earnings reports, and market trends. Use Yahoo Finance and web search for data. Produce structured, evidence-based analysis."
+        "workspace": "/exchange/workspace/openclaw/stock-watch-analyst"
       },
       {
         "id": "financial-research-analyst",
         "name": "Financial Research Analyst",
         "identity": { "name": "Financial Research Analyst", "emoji": "🔬" },
         "model": "anthropic/claude-sonnet-4-6",
-        "systemPromptOverride": "You are a financial research analyst. You produce deep-dive research reports on companies, sectors, and macro trends. Cite sources, compare peers, and highlight risks and opportunities."
+        "workspace": "/exchange/workspace/openclaw/financial-research-analyst"
       }
     ]
   },
