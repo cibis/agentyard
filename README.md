@@ -2,7 +2,7 @@
 
 A self-hosted AI agent orchestration stack that pairs [Paperclip](https://github.com/paperclipai/paperclip) with sandboxed [openclaw](https://github.com/openclawai/openclaw) and [opencode](https://github.com/sst/opencode) agents running in Docker.
 
-The stack keeps agents fully isolated from the host while giving them the internet access, tool skills, and file exchange they need to do real work. In this configuration it is wired up as an **AI investment advisor** — capable of live market research, stock price lookups, web search, financial analysis, and generating custom reports or UI dashboards.
+The stack keeps agents fully isolated from the host while giving them the internet access, tool skills, and file exchange they need to do real work. The included configuration uses a simulated **investment advisory scenario** as a real-world-ish test case — not as a production system, but as a concrete domain complex enough to exercise the full agent collaboration pattern.
 
 ---
 
@@ -30,19 +30,32 @@ Both containers run with full internal permissions (root, all Linux capabilities
 
 ## Use cases
 
-The architecture is general-purpose — any task that benefits from sandboxed agents with internet access. This repo is configured for **investment advisory**:
+The stack is designed around **role-separated agents** — each agent has a distinct responsibility, and agents collaborate through a shared file exchange. The included example wires up a simulated investment advisory scenario as a test case (not a real advisory system) to demonstrate the pattern concretely:
+
+- **Domain agents** (hosted in openclaw) handle research, analysis, and monitoring — Stock Watch Analyst, Financial Research Analyst, and similar roles. They produce reports and signals as files.
+- **The dev agent** (opencode) is a full-stack developer that builds and runs custom web pages and APIs on demand, directly accessible in the browser at `http://localhost:9081`. Any agent or orchestrator can request it to build a UI or API endpoint — the result is live immediately, with no deployment step.
+- **Paperclip** (the orchestrator) assigns goals, routes work between agents, and tracks task status.
 
 | Capability | How it works |
 |---|---|
 | Live stock quotes & OHLCV data | Yahoo Finance skill (curl/node, no API key needed) |
 | Web research & news | Brave Search built-in plugin (auto-enabled via `BRAVE_API_KEY`) |
-| Financial analysis & reports | openclaw reasons over data; opencode generates code/documents |
-| Custom UI dashboards | opencode builds and serves a web app on the preview port |
-| Portfolio tracking | File exchange between agents and Paperclip via `/exchange` |
+| Financial analysis & reports | openclaw domain agents reason over data; output written to `/exchange/outbox/` |
+| Custom UI dashboards & APIs | opencode dev agent builds and serves pages/APIs on request, browser-accessible at port 9081 |
+| Cross-agent data flow | All agents share `/exchange` — domain agents write reports, dev agent reads them into UIs |
 
 ### Test setup — Stock Advisory Portal
 
-The bootstrap process in [docs/examples/bootstrap.md](docs/examples/bootstrap.md) was run end-to-end as a reference test. The CEO agent delegated the portal build task to the Full Stack Developer agent (opencode), which autonomously built and deployed a 6-screen **Stock Advisory Portal** at `http://localhost:9081/stock-portal/`:
+The bootstrap process in [docs/examples/bootstrap.md](docs/examples/bootstrap.md) was run end-to-end to validate the multi-agent collaboration pattern. Four agents played distinct roles:
+
+| Agent | Platform | Role |
+|---|---|---|
+| CEO | Paperclip | Orchestrator — assigns goals, delegates tasks |
+| Stock Watch Analyst | openclaw | Daily market monitoring; flags stocks on sale or sentiment shifts |
+| Financial Research Analyst | openclaw | Deep-dive research; produces weekly screening reports |
+| Full Stack Developer | opencode | Builds and serves browser-accessible pages and APIs on demand |
+
+The CEO agent tasked the Full Stack Developer with building a portal to surface the analyst agents' output. The dev agent autonomously built and deployed a 6-screen **Stock Advisory Portal** at `http://localhost:9081/stock-portal/`:
 
 - **Alert Dashboard** — reads latest `daily-alert-*.md` report from openclaw outbox
 - **Watchlist Manager** — reads `approved_stocks.md` (28 active tickers on first deploy)
