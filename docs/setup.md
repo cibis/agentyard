@@ -10,7 +10,7 @@ This plan sets up a fully self-hosted AI orchestration stack on a Windows machin
 
 2. **Run OpenCode and OpenClaw as sandboxed agents** — both built from source and containerised in Docker. Paperclip dispatches work to them via the openclaw gateway and SSH.
 
-3. **Use AWS Bedrock and Anthropic as model providers** — no local LLM required. openclaw defaults to Amazon Nova 2 Lite via Bedrock; opencode defaults to Claude Haiku 4.5 via Anthropic.
+3. **Use Anthropic as the model provider** — no local LLM required. Both openclaw and opencode default to Claude Haiku 4.5 via Anthropic.
 
 4. **Enforce a strict sandbox security model:**
    - Agents have full permissions *inside* their containers (root, all capabilities, no syscall filtering)
@@ -69,10 +69,9 @@ Windows Host
 | SSH client (host) | OpenCode terminal | `ssh opencode` → `ssh root@localhost -p 2223` |
 | docker exec | OpenClaw terminal | `docker exec -it openclaw bash` |
 | docker exec | OpenCode TUI | `docker exec -it opencode opencode` |
-| OpenClaw (container) | AWS Bedrock | `https://bedrock-runtime.us-east-1.amazonaws.com` (outbound HTTPS) |
 | OpenClaw (container) | Anthropic API | `https://api.anthropic.com` (outbound HTTPS) |
 | OpenCode (container) | Anthropic API | `https://api.anthropic.com` (outbound HTTPS) |
-| Paperclip (host) | AWS Bedrock / Anthropic | Direct outbound HTTPS from host |
+| Paperclip (host) | Anthropic API | Direct outbound HTTPS from host |
 | Paperclip → Agents (files) | `.\shared\inbox\` | Bind mount → `/exchange/inbox/` in containers |
 | Agents → Paperclip (files) | `/exchange/outbox/` in containers | Bind mount → `.\shared\outbox\` on host |
 | OpenClaw ↔ OpenCode (files) | `/agent-exchange/` in both containers | Shared named Docker volume |
@@ -251,14 +250,6 @@ Create `.\config\openclaw.json`:
   },
   "models": {
     "providers": {
-      "amazon-bedrock": {
-        "api": "bedrock-converse-stream",
-        "auth": "aws-sdk",
-        "baseUrl": "https://bedrock-runtime.us-east-1.amazonaws.com",
-        "models": [
-          { "id": "us.amazon.nova-2-lite-v1:0", "name": "Amazon Nova 2 Lite" }
-        ]
-      },
       "anthropic": {
         "models": [
           { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5" }
@@ -268,7 +259,7 @@ Create `.\config\openclaw.json`:
   },
   "agents": {
     "defaults": {
-      "model": "amazon-bedrock/us.amazon.nova-2-lite-v1:0",
+      "model": "anthropic/claude-haiku-4-5-20251001",
       "sandbox": {
         "mode": "off"
       }
@@ -636,10 +627,6 @@ docker exec openclaw sh -c "curl -s https://api.anthropic.com" | head -c 100
 docker exec opencode sh -c "curl -s https://api.anthropic.com" | head -c 100
 # ✓ Both reach Anthropic
 
-# Bedrock connectivity from openclaw
-docker exec openclaw sh -c "curl -s -o /dev/null -w '%{http_code}' https://bedrock-runtime.us-east-1.amazonaws.com/"
-# ✓ 200 or 403 (403 means reachable, just needs auth)
-
 # SSH to opencode
 ssh opencode "echo 'SSH OK' && opencode --version"
 # ✓ SSH OK / version string
@@ -742,4 +729,4 @@ To add a new skill:
 
 *Platform: Windows 11 Pro, 64 GB RAM, Docker Desktop, Git Bash*
 *Repos: openclaw · opencode · paperclip — expected as sibling directories alongside agentyard*
-*Model providers: AWS Bedrock (Nova 2 Lite, primary) · Anthropic (Claude Haiku 4.5, secondary)*
+*Model providers: Anthropic (Claude Haiku 4.5)*

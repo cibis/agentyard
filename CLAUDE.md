@@ -45,16 +45,15 @@ opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->9081/tcp
 | `shared/inbox/openclaw/screening_criteria.md` | Screening filters and thresholds for the Financial Research Analyst (human-editable) |
 | `docs/ops-reference.md` | Full debugging and ops reference: Paperclip API, DB, containers, discovery patterns |
 | `docs/examples/` | Reusable task templates: portal build, routine setup, bootstrap checklist |
+| `docs/paperclip-adapter-dev-reference.md` | **Adapter dev reference**: full `ServerAdapterModule` interface, all REST API endpoints with exact paths/bodies, wake context shape (`context.paperclipWake`), session persistence pattern, env vars, networking URLs — read this before building any new adapter or custom agent |
 
 ## Models
 
 | Model | Provider | Used by | Purpose |
 |-------|----------|---------|---------|
-| `us.amazon.nova-2-lite-v1:0` | AWS Bedrock | openclaw (default), paperclip (default) | Primary agent model |
-| `claude-haiku-4-5-20251001` | Anthropic | openclaw (secondary), opencode (default) | Coding + fallback model |
+| `claude-haiku-4-5-20251001` | Anthropic | openclaw (default), opencode (default) | Primary agent model |
 
-openclaw default: `amazon-bedrock/us.amazon.nova-2-lite-v1:0`
-openclaw secondary: `anthropic/claude-haiku-4-5-20251001`
+openclaw default: `anthropic/claude-haiku-4-5-20251001`
 opencode default: `anthropic/claude-haiku-4-5-20251001`
 
 ## Web Preview Ports
@@ -122,9 +121,6 @@ ssh opencode
 
 # Test openclaw gateway
 curl http://localhost:18789/healthz
-
-# Test Bedrock connectivity from container
-docker exec openclaw sh -c "curl -s https://bedrock-runtime.us-east-1.amazonaws.com/"
 
 # Test Anthropic connectivity from container
 docker exec openclaw sh -c "curl -s https://api.anthropic.com/v1/models -H 'x-api-key: $ANTHROPIC_API_KEY' | head -c 200"
@@ -197,14 +193,6 @@ Prompt templates and path-translation rules for every agent × use-case are in `
   },
   "models": {
     "providers": {
-      "amazon-bedrock": {
-        "api": "bedrock-converse-stream",
-        "auth": "aws-sdk",
-        "baseUrl": "https://bedrock-runtime.us-east-1.amazonaws.com",
-        "models": [
-          { "id": "us.amazon.nova-2-lite-v1:0", "name": "Amazon Nova 2 Lite" }
-        ]
-      },
       "anthropic": {
         "models": [
           { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5" }
@@ -214,7 +202,7 @@ Prompt templates and path-translation rules for every agent × use-case are in `
   },
   "agents": {
     "defaults": {
-      "model": "amazon-bedrock/us.amazon.nova-2-lite-v1:0",
+      "model": "anthropic/claude-haiku-4-5-20251001",
       "sandbox": { "mode": "off" }
     }
   }

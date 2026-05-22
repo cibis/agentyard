@@ -44,7 +44,7 @@ curl -X POST http://localhost:18789/v1/chat/completions `
   -H "Authorization: Bearer $env:OPENCLAW_GATEWAY_TOKEN" `
   -H "Content-Type: application/json" `
   -d '{
-    "model": "amazon-bedrock/us.amazon.nova-2-lite-v1:0",
+    "model": "anthropic/claude-haiku-4-5-20251001",
     "messages": [{"role": "user", "content": "Hello"}],
     "stream": false
   }'

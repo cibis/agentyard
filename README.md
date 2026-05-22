@@ -21,7 +21,7 @@ The stack keeps agents fully isolated from the host while giving them the intern
 ```
 
 - **Paperclip** runs on the host as the orchestration layer — manages agents, assigns goals, tracks costs, governs actions.
-- **openclaw** is an HTTP agent gateway in Docker. Uses AWS Bedrock (Amazon Nova 2 Lite, primary) and Anthropic Claude (secondary). Ships with built-in Brave web search. Custom skills extend it without modifying the image.
+- **openclaw** is an HTTP agent gateway in Docker. Uses Anthropic Claude Haiku as the default model. Ships with built-in Brave web search. Custom skills extend it without modifying the image.
 - **opencode** is a Bun-based coding agent in Docker, accessible over SSH. Builds and runs code, produces files, generates custom reports and UIs.
 
 Both containers run with full internal permissions (root, all Linux capabilities except `SYS_ADMIN`) but **zero host access** — no host PID namespace, no Docker socket, no host filesystem beyond a single scoped exchange directory.

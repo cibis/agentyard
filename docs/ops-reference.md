@@ -374,14 +374,6 @@ Model providers are in `config/openclaw.json`. To add or change a model:
 ```json
 "models": {
   "providers": {
-    "amazon-bedrock": {
-      "api": "bedrock-converse-stream",
-      "auth": "aws-sdk",
-      "baseUrl": "https://bedrock-runtime.us-east-1.amazonaws.com",
-      "models": [
-        { "id": "us.amazon.nova-2-lite-v1:0", "name": "Amazon Nova 2 Lite" }
-      ]
-    },
     "anthropic": {
       "models": [
         { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5" }
