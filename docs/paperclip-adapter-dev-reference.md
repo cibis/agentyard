@@ -383,7 +383,6 @@ Set by Paperclip / inherited from host process:
 | `PAPERCLIP_INBOX_DIR` | paperclip .env | absolute path to `agentyard/shared/inbox/` |
 | `PAPERCLIP_OUTBOX_DIR` | paperclip .env | absolute path to `agentyard/shared/outbox/` |
 | `ANTHROPIC_API_KEY` | agentyard .env | Anthropic key |
-| `AWS_ACCESS_KEY_ID` | agentyard .env | AWS key |
 | `PAPERCLIP_API_KEY` | injected by harness | short-lived JWT for agent→Paperclip (if supportsLocalAgentJwt=true) |
 
 `buildPaperclipEnv(agent)` from adapter-utils adds `PAPERCLIP_AGENT_ID`, `PAPERCLIP_COMPANY_ID`, `PAPERCLIP_RUN_ID`, and other agent-scoped vars.
