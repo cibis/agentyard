@@ -4,11 +4,11 @@
 
 A local self-hosted AI orchestration stack running in Docker on this Windows 11 machine. Three components work together:
 
-- **openclaw** — Node.js AI agent/gateway (port 18789). Accepts tasks from Paperclip, runs them using AWS Bedrock or Anthropic models, has built-in web search (Brave) and a skill system. Web preview at `http://localhost:9080` (agent starts any server on container port 9080).
+- **openclaw** — Node.js AI agent/gateway (port 18789). Accepts tasks from Paperclip, runs them using Anthropic models (Claude Haiku 4.5 by default), has built-in web search (Brave) and a skill system. Web preview at `http://localhost:9080` (agent starts any server on container port 9080).
 - **opencode** — Bun-based coding agent (SSH on port 2223). A sandboxed coding environment reachable via SSH. Uses Anthropic Claude Haiku by default. Web preview at `http://localhost:9081` — served content follows the convention in `skills/opencode/SKILL.md` (all files under `/exchange/outbox/opencode/serve/`, registry at `serve-process.json`, auto-restarts on container restart).
 - **paperclip** — Orchestrator running on the host (not in Docker). Routes tasks to openclaw/opencode agents.
 
-Model providers: **AWS Bedrock** (primary) and **Anthropic** (secondary). No local Ollama.
+Model provider: **Anthropic**. No local Ollama.
 
 ## Current State: Fully Operational
 
@@ -30,8 +30,8 @@ opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->9081/tcp
 | File | Purpose |
 |------|---------|
 | `docker-compose.yml` | Defines both services, networks, volumes |
-| `.env` | All secrets (Brave API key, SSH passwords, gateway token, Anthropic key, AWS creds) |
-| `config/openclaw.json` | openclaw config: Bedrock + Anthropic providers, gateway auth, agent defaults |
+| `.env` | All secrets (Brave API key, SSH passwords, gateway token, Anthropic key) |
+| `config/openclaw.json` | openclaw config: Anthropic provider (Haiku + Sonnet), gateway auth, agent defaults |
 | `config/opencode.jsonc` | opencode config: Anthropic provider, Haiku as default model |
 | `skills/yahoo-finance/SKILL.md` | Custom skill teaching openclaw to use Yahoo Finance API |
 | `skills/opencode/SKILL.md` | opencode serve conventions — paths, serve-process.json schema, prompt templates; mounted into opencode at `/workspace/serve-conventions.md` |
@@ -44,16 +44,18 @@ opencode   healthy   0.0.0.0:2223->22/tcp, 0.0.0.0:9081->9081/tcp
 | `shared/inbox/openclaw/approved_stocks.md` | Active watchlist for the Stock Watch Analyst (human-editable) |
 | `shared/inbox/openclaw/screening_criteria.md` | Screening filters and thresholds for the Financial Research Analyst (human-editable) |
 | `docs/ops-reference.md` | Full debugging and ops reference: Paperclip API, DB, containers, discovery patterns |
-| `docs/examples/` | Reusable task templates: portal build, routine setup, bootstrap checklist |
+| `docs/examples/` | Reusable task templates — see `paperclip-task-advisory-system-setup.md` |
 | `docs/paperclip-adapter-dev-reference.md` | **Adapter dev reference**: full `ServerAdapterModule` interface, all REST API endpoints with exact paths/bodies, wake context shape (`context.paperclipWake`), session persistence pattern, env vars, networking URLs — read this before building any new adapter or custom agent |
 
 ## Models
 
 | Model | Provider | Used by | Purpose |
 |-------|----------|---------|---------|
-| `claude-haiku-4-5-20251001` | Anthropic | openclaw (default), opencode (default) | Primary agent model |
+| `claude-haiku-4-5-20251001` | Anthropic | openclaw (default), opencode (default) | Default agent model — most tasks |
+| `claude-sonnet-4-6` | Anthropic | openclaw (Financial Research Analyst) | Deep research and analysis |
 
 openclaw default: `anthropic/claude-haiku-4-5-20251001`
+openclaw Financial Research Analyst: `anthropic/claude-sonnet-4-6`
 opencode default: `anthropic/claude-haiku-4-5-20251001`
 
 ## Web Preview Ports
@@ -75,7 +77,6 @@ python3 -m http.server 9081 --directory /workspace
 
 - **openclaw gateway token**: see `OPENCLAW_GATEWAY_TOKEN` in `.env`
 - **Anthropic API key**: see `ANTHROPIC_API_KEY` in `.env`
-- **AWS credentials**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION=us-east-1` in `.env`
 - **opencode SSH**: `ssh opencode` (key auth, `~/.ssh/id_opencode`, no passphrase)
 - **opencode SSH password fallback**: see `OPENCODE_SSH_PASS` in `.env`
 - **openclaw SSH password**: see `OPENCLAW_SSH_PASS` in `.env` (no SSH exposed for openclaw)
@@ -146,7 +147,6 @@ The `config/openclaw.json` uses openclaw's strict Zod schema. Key valid root key
 
 Provider notes:
 - Anthropic: set `"models"` list; API key comes from `ANTHROPIC_API_KEY` env var automatically. No `api` field needed (auto-set to `anthropic-messages`).
-- Bedrock: set `"api": "bedrock-converse-stream"`, `"auth": "aws-sdk"`, `"baseUrl"`. AWS creds come from `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` env vars.
 
 Invalid root keys include `"agent"` (it's `agents`), and `baseURL` (it's `baseUrl`).
 
@@ -217,11 +217,6 @@ OPENCLAW_SSH_PASS=<unused, kept for reference>
 OPENCODE_SSH_PASS=<opencode root password>
 OPENCLAW_GATEWAY_TOKEN=<gateway bearer token>
 ANTHROPIC_API_KEY=<anthropic api key>
-AWS_ACCESS_KEY_ID=<aws access key>
-AWS_SECRET_ACCESS_KEY=<aws secret key>
-AWS_REGION=us-east-1
-AWS_DEFAULT_REGION=us-east-1
-AWS_REGION_NAME=us-east-1
 ```
 
 ## Paperclip (Host Orchestrator)
@@ -229,11 +224,6 @@ AWS_REGION_NAME=us-east-1
 Located at `../paperclip`. Runs on the host (not in Docker). Its `.env` configures:
 ```
 ANTHROPIC_API_KEY=<anthropic api key>
-AWS_ACCESS_KEY_ID=<aws access key>
-AWS_SECRET_ACCESS_KEY=<aws secret key>
-AWS_REGION=us-east-1
-AWS_DEFAULT_REGION=us-east-1
-AWS_REGION_NAME=us-east-1
 PAPERCLIP_EXCHANGE_DIR=<absolute-path-to-agentyard>\shared
 PAPERCLIP_INBOX_DIR=<absolute-path-to-agentyard>\shared\inbox
 PAPERCLIP_OUTBOX_DIR=<absolute-path-to-agentyard>\shared\outbox

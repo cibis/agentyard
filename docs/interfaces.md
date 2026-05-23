@@ -38,19 +38,7 @@ Base URL: `http://localhost:18789`
 curl http://localhost:18789/healthz
 ```
 
-**Example — chat completion with the default Bedrock model:**
-```powershell
-curl -X POST http://localhost:18789/v1/chat/completions `
-  -H "Authorization: Bearer $env:OPENCLAW_GATEWAY_TOKEN" `
-  -H "Content-Type: application/json" `
-  -d '{
-    "model": "anthropic/claude-haiku-4-5-20251001",
-    "messages": [{"role": "user", "content": "Hello"}],
-    "stream": false
-  }'
-```
-
-**Example — chat completion with Anthropic Haiku:**
+**Example — chat completion with Claude Haiku (default model):**
 ```powershell
 curl -X POST http://localhost:18789/v1/chat/completions `
   -H "Authorization: Bearer $env:OPENCLAW_GATEWAY_TOKEN" `

@@ -46,7 +46,7 @@ Windows Host
     ├── agent-exchange volume       (named Docker volume — agent ↔ agent only, not host)
     ├── openclaw container          (port 18789 → gateway + Control UI, 9080 → web preview)
     │   ├── Full in-container permissions (root, cap ALL-SYS_ADMIN, seccomp off)
-    │   ├── Reaches internet via bridge NAT → AWS Bedrock + Anthropic APIs
+    │   ├── Reaches internet via bridge NAT → Anthropic APIs
     │   ├── /exchange  → .\shared\  (host ↔ agent files)
     │   ├── /agent-exchange → agent-exchange volume     (agent ↔ agent files)
     │   ├── Built-in Brave Search plugin (auto-enabled by BRAVE_API_KEY env var)
@@ -89,7 +89,7 @@ Windows Host
 - Make any syscall the kernel supports (seccomp unconfined)
 - Fork unlimited processes
 - Use large shared memory segments
-- Reach the internet (required for Bedrock/Anthropic API calls)
+- Reach the internet (required for Anthropic API calls)
 - Read and write files in `/exchange` — a single, scoped bind mount to the exchange directory only
 - Read and write files in `/agent-exchange` — a Docker volume shared between agents, not accessible from the host
 
@@ -173,11 +173,6 @@ mkdir skills\yahoo-finance
 1. Go to **https://console.anthropic.com/**
 2. Create an account and generate an API key (looks like `sk-ant-api03-...`)
 
-### AWS Bedrock Access
-1. Create an IAM user with `AmazonBedrockFullAccess` policy (or scoped to specific models)
-2. Generate access keys: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-3. Ensure the us-east-1 region has model access enabled in the AWS Bedrock console
-
 ### Brave Search API Key (required for openclaw web search)
 1. Go to **https://brave.com/search/api/**
 2. Create a free account and get an API key (looks like `BSA...`)
@@ -203,15 +198,8 @@ OPENCODE_SSH_PASS=change_me_opencode
 # Gateway auth token for openclaw (generate with: openssl rand -hex 20)
 OPENCLAW_GATEWAY_TOKEN=your-token-here
 
-# Anthropic API
+# Anthropic API (required — all models use Anthropic)
 ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
-
-# AWS Bedrock
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_REGION=us-east-1
-AWS_DEFAULT_REGION=us-east-1
-AWS_REGION_NAME=us-east-1
 ```
 
 **Never commit this file to version control.**
@@ -276,7 +264,6 @@ Create `.\config\openclaw.json`:
 - `gateway.mode: "local"` is required
 - Gateway token comes from `OPENCLAW_GATEWAY_TOKEN` env var
 - Anthropic API key comes from `ANTHROPIC_API_KEY` env var (no need to set in config)
-- AWS credentials come from `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` env vars
 
 ---
 
@@ -339,18 +326,13 @@ Create `.\config\opencode.jsonc`:
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "anthropic": {},
-    "amazon-bedrock": {
-      "options": {
-        "region": "us-east-1"
-      }
-    }
+    "anthropic": {}
   },
   "model": "anthropic/claude-haiku-4-5-20251001"
 }
 ```
 
-Credentials come from env vars: `ANTHROPIC_API_KEY` for Anthropic, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for Bedrock.
+Credentials come from env vars: `ANTHROPIC_API_KEY` for Anthropic.
 
 ---
 
@@ -432,11 +414,6 @@ services:
       - OPENCLAW_ALLOW_ROOT=1
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
-      - AWS_REGION_NAME=${AWS_REGION_NAME}
     user: root
     ...
     volumes:
@@ -456,11 +433,6 @@ services:
       - BRAVE_API_KEY=${BRAVE_API_KEY}
       - OPENCODE_SSH_PASS=${OPENCODE_SSH_PASS}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
-      - AWS_REGION_NAME=${AWS_REGION_NAME}
     volumes:
       - ./config/opencode.jsonc:/workspace/.opencode/opencode.jsonc:ro
       - opencode-workspace:/workspace
@@ -542,12 +514,6 @@ SERVE_UI=false
 BETTER_AUTH_SECRET=paperclip-dev-secret
 
 ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
-
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_REGION_NAME=us-east-1
-AWS_REGION=us-east-1
-AWS_DEFAULT_REGION=us-east-1
 
 # Set these to the absolute path of the agentyard shared directory
 PAPERCLIP_EXCHANGE_DIR=<path-to-agentyard>\shared
@@ -680,8 +646,6 @@ curl http://localhost:3100/api/health
 | Brave search returns 429 | Free tier quota exceeded (2000/month) | Wait for quota reset or upgrade plan |
 | Agent cannot write to `/exchange` | Docker Desktop file sharing not enabled | Add the project's parent directory in Docker Desktop → Settings → Resources → File Sharing |
 | SSH config causes parse error (`no argument after keyword`) | Config file has UTF-8 BOM | Rewrite `~/.ssh/config` using `printf` in bash, not PowerShell `Out-File` |
-| Bedrock calls return 403 | IAM user lacks Bedrock permissions | Add `AmazonBedrockFullAccess` policy or scope to specific model ARNs |
-| Bedrock calls return connection refused | Wrong region | Ensure `AWS_REGION=us-east-1` in `.env` and model is available in that region |
 | Anthropic calls return 401 | Invalid API key | Check `ANTHROPIC_API_KEY` in `.env` |
 
 ## Security Decision Reference

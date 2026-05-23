@@ -32,7 +32,7 @@ Always use this order:
 
 | File | Purpose |
 |------|---------|
-| `.env` | All secrets — API keys, SSH passwords, gateway token, AWS creds |
+| `.env` | All secrets — API keys, SSH passwords, gateway token |
 | `docker-compose.yml` | Container definitions, volume mounts, port mappings |
 | `config/openclaw.json` | openclaw model providers, gateway auth, agent defaults |
 | `config/opencode.jsonc` | opencode model config (Anthropic Haiku) |
@@ -376,7 +376,8 @@ Model providers are in `config/openclaw.json`. To add or change a model:
   "providers": {
     "anthropic": {
       "models": [
-        { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5" }
+        { "id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "maxTokens": 16384, "contextWindow": 200000 },
+        { "id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "maxTokens": 16000, "contextWindow": 200000 }
       ]
     }
   }
@@ -572,8 +573,6 @@ Key values from `.env`:
 | `OPENCLAW_GATEWAY_TOKEN` | Paperclip → openclaw | Bearer token for gateway auth |
 | `OPENCODE_SSH_PASS` | opencode, Paperclip | SSH password fallback (key auth preferred) |
 | `ANTHROPIC_API_KEY` | openclaw, opencode, Paperclip | Anthropic model calls |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | openclaw | Bedrock model calls |
-| `AWS_REGION` | openclaw | `us-east-1` |
 | `PAPERCLIP_API_KEY` | openclaw container | For openclaw to call back to Paperclip API |
 | `PAPERCLIP_API_URL` | openclaw container | `http://host.docker.internal:3100` |
 

@@ -13,7 +13,7 @@ The stack keeps agents fully isolated from the host while giving them the intern
 │  Paperclip (orchestrator)  ←→  Browser UI      │
 │         ↕ HTTP / SSH                           │
 │  ┌── Docker ──────────────────────────────┐    │
-│  │  openclaw  ←→  AWS Bedrock / Anthropic │    │
+│  │  openclaw  ←→  Anthropic               │    │
 │  │  opencode  ←→  Anthropic               │    │
 │  │  shared /exchange volume               │    │
 │  └────────────────────────────────────────┘    │
@@ -46,7 +46,7 @@ The stack is designed around **role-separated agents** — each agent has a dist
 
 ### Test setup — Stock Advisory Portal
 
-The bootstrap process in [docs/examples/bootstrap.md](docs/examples/bootstrap.md) was run end-to-end to validate the multi-agent collaboration pattern. Four agents played distinct roles:
+The stack was run end-to-end to validate the multi-agent collaboration pattern. Four agents played distinct roles:
 
 | Agent | Platform | Role |
 |---|---|---|
@@ -79,7 +79,7 @@ The portal is served by `server.js` (Node.js built-ins only, no npm) with 8 API 
 | openclaw | Agent gateway, research, analysis | Docker — `http://localhost:18789` |
 | opencode | Coding agent, report/UI builder | Docker — SSH `ssh opencode`, UI `http://localhost:9081` |
 
-**Model providers:** AWS Bedrock (primary) · Anthropic (secondary). No local LLM required.
+**Model provider:** Anthropic (Claude Haiku 4.5 by default). No local LLM required.
 
 ---
 
@@ -87,7 +87,7 @@ The portal is served by `server.js` (Node.js built-ins only, no npm) with 8 API 
 
 - Docker Desktop for Windows
 - Node.js 20+ and pnpm 9.15+
-- API keys: Anthropic, AWS Bedrock (IAM), Brave Search (free tier)
+- API keys: Anthropic, Brave Search (free tier)
 
 ### Required repos
 
@@ -195,9 +195,7 @@ agentyard/
     ├── setup.md              # Full setup guide
     ├── interfaces.md         # API and interface reference
     └── examples/
-        ├── bootstrap.md                    # First-run checklist
-        ├── paperclip-task-build-portal.md  # Portal build task template
-        └── paperclip-task-setup-routines.md # Routine setup task template
+        └── paperclip-task-advisory-system-setup.md  # Advisory system task template
 ```
 
 ---
@@ -240,7 +238,7 @@ Agents have **full permissions inside their container** and **zero access outsid
 - Seccomp and AppArmor unconfined (agents need to run arbitrary code)
 - No host PID/IPC namespace, no Docker socket, no `/var/run/docker.sock`
 - Only one host directory is exposed: `./shared` → `/exchange` (scoped file exchange)
-- Outbound internet via Docker bridge NAT (required for Bedrock/Anthropic APIs)
+- Outbound internet via Docker bridge NAT (required for Anthropic API)
 
 ---
 
@@ -256,4 +254,4 @@ Agents have **full permissions inside their container** and **zero access outsid
 - [docs/ops-reference.md](docs/ops-reference.md) — stack debugging and ops reference (Paperclip API, DB, containers)
 - [docs/setup.md](docs/setup.md) — step-by-step setup from scratch
 - [docs/interfaces.md](docs/interfaces.md) — API reference for all components
-- [docs/examples/](docs/examples/) — reusable Paperclip task templates and bootstrap checklist
+- [docs/examples/](docs/examples/) — reusable Paperclip task templates
