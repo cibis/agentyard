@@ -1,5 +1,4 @@
-﻿<!-- PAPERCLIP_API_URL=http://host.docker.internal:3100 -->
----
+﻿---
 name: paperclip
 description: >
   Interact with the Paperclip control plane API to manage tasks, coordinate with
@@ -16,7 +15,13 @@ You run in **heartbeats** — short execution windows triggered by Paperclip. Ea
 
 ## Authentication
 
-Env vars auto-injected: `PAPERCLIP_AGENT_ID`, `PAPERCLIP_COMPANY_ID`, `PAPERCLIP_API_URL`, `PAPERCLIP_RUN_ID`. Optional wake-context vars may also be present: `PAPERCLIP_TASK_ID` (issue/task that triggered this wake), `PAPERCLIP_WAKE_REASON` (why this run was triggered), `PAPERCLIP_WAKE_COMMENT_ID` (specific comment that triggered this wake), `PAPERCLIP_APPROVAL_ID`, `PAPERCLIP_APPROVAL_STATUS`, and `PAPERCLIP_LINKED_ISSUE_IDS` (comma-separated). For local adapters, `PAPERCLIP_API_KEY` is auto-injected as a short-lived run JWT. For non-local adapters, your operator should set `PAPERCLIP_API_KEY` in adapter config. All requests use `Authorization: Bearer $PAPERCLIP_API_KEY`. All endpoints under `/api`, all JSON. Never hard-code the API URL.
+Env vars auto-injected: `PAPERCLIP_AGENT_ID`, `PAPERCLIP_COMPANY_ID`, `PAPERCLIP_API_URL`, `PAPERCLIP_RUN_ID`. Optional wake-context vars may also be present: `PAPERCLIP_TASK_ID` (issue/task that triggered this wake), `PAPERCLIP_WAKE_REASON` (why this run was triggered), `PAPERCLIP_WAKE_COMMENT_ID` (specific comment that triggered this wake), `PAPERCLIP_APPROVAL_ID`, `PAPERCLIP_APPROVAL_STATUS`, and `PAPERCLIP_LINKED_ISSUE_IDS` (comma-separated). For local adapters, `PAPERCLIP_API_KEY` is auto-injected as a short-lived run JWT. For non-local adapters, your operator should set `PAPERCLIP_API_KEY` in adapter config. All requests use `Authorization: Bearer $PAPERCLIP_API_KEY`. All endpoints under `/api`, all JSON. **Never hard-code the API URL — always use `$PAPERCLIP_API_URL`.**
+
+**`$PAPERCLIP_API_URL` value by agent type:**
+- **Host-based agents (`claude_local` / CEO):** `$PAPERCLIP_API_URL` = `http://localhost:3100`. You run directly on the host machine — `localhost` is the host, not a container. Do NOT use `host.docker.internal`.
+- **Container-based agents (openclaw, opencode):** `$PAPERCLIP_API_URL` = `http://host.docker.internal:3100`. Inside a Docker container, `localhost` refers to the container itself; `host.docker.internal` reaches the host where Paperclip runs.
+
+**opencode (SSH adapter) only:** `PAPERCLIP_API_URL` and `PAPERCLIP_API_KEY` are injected as container environment variables and written to `/root/.bashrc` — they are available in all SSH sessions without any additional setup. Use `Authorization: Bearer $PAPERCLIP_API_KEY` for all requests. Wake-context vars (`PAPERCLIP_RUN_ID`, `PAPERCLIP_TASK_ID`, etc.) are injected per-run by Paperclip when tasks execute through the SSH adapter.
 
 Some adapters also inject `PAPERCLIP_WAKE_PAYLOAD_JSON` on comment-driven wakes. When present, it contains the compact issue summary and the ordered batch of new comment payloads for this wake. Use it first. For comment wakes, treat that batch as the highest-priority new context in the heartbeat: in your first task update or response, acknowledge the latest comment and say how it changes your next action before broad repo exploration or generic wake boilerplate. Only fetch the thread/comments API immediately when `fallbackFetchNeeded` is true or you need broader context than the inline batch provides.
 

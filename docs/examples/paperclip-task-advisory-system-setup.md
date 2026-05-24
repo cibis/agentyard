@@ -1,4 +1,4 @@
-# Advisory System Setup: Stock Portal, Daily Monitor, and Weekly Screener
+# Advisory System Setup: Stock Portal, Daily Monitor, and Monthly Screener
 
 Execute the following three actions in order:
 
@@ -6,11 +6,16 @@ Execute the following three actions in order:
 2. Delegate the portal build to the Full Stack Developer (SUB-TASK A).
 3. Verify completion criteria, post a summary comment, and close this issue.
 
+> **CONSTRAINT — ALL ROUTINES MUST BE PAPERCLIP ROUTINES**
+> Do NOT create Claude Code cloud routines (claude.ai/code/routines or the /schedule skill).
+> Both routines in SUB-TASK B must be registered exclusively via the Paperclip routines API.
+> Creating routines in any other system is a task failure.
+
 ---
 
 ## FILE FORMAT CONTRACT
 
-The portal parses markdown files produced by the daily and weekly routines. Both the portal developer and the routine issue bodies must conform to these specifications exactly.
+The portal parses markdown files produced by the daily and monthly routines. Both the portal developer and the routine issue bodies must conform to these specifications exactly.
 
 ### Daily Alert Files
 
@@ -39,10 +44,10 @@ Every ticker entry in sections ON SALE through CLEAN must use this exact table s
 |--------|-----------|------------------|------------|-----------|-------------|-------|
 ```
 
-### Weekly Screen Files
+### Monthly Screen Files
 
-**Path:** `/exchange/outbox/openclaw/weekly-screen-{YYYY-MM-DD}.md`
-**Glob pattern used by portal:** `weekly-screen-*.md`
+**Path:** `/exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md`
+**Glob pattern used by portal:** `monthly-screen-*.md`
 
 Required sections:
 ```
@@ -72,6 +77,21 @@ Create a Paperclip issue for the Full Stack Developer (opencode agent) with the 
 Build the Stock Advisory Portal as specified below. The portal covers the stock workflow UI only — it does not replicate Paperclip dashboard functionality. No agent config, no budget views, no activity feed.
 
 
+### STEP 0 — VERIFY PAPERCLIP API CONNECTIVITY BEFORE BUILDING ANYTHING
+
+Before writing any portal code, confirm the Paperclip API is reachable from this container and that your credentials work. Run:
+
+```sh
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
+  "$PAPERCLIP_API_URL/api/agents/me"
+```
+
+Expected result: HTTP 200. If you get anything else, **stop and post a comment** with the error and the value of `$PAPERCLIP_API_URL` — do not proceed with the portal build until this is resolved.
+
+Once confirmed, use the verified `$PAPERCLIP_API_URL` value as the Paperclip base URL in `server.js`. Never hardcode a URL — always read it from `process.env.PAPERCLIP_API_URL` at runtime so that the portal works correctly regardless of environment.
+
+
 ### SERVE CONVENTIONS — MANDATORY
 
 The only server allowed is `/exchange/outbox/opencode/serve/server.js` on port 9081. Never start a server outside that path. Before starting, check whether the server is already running by reading `serve-process.json`. Always start in background mode: `node /exchange/outbox/opencode/serve/server.js &` followed by `disown`. Static files go in `/exchange/outbox/opencode/serve/www/stock-portal/`. Register the service as `stock-portal` in `serve-process.json`. Host access is `http://localhost:9081/stock-portal`. Use `http://opencode:9081/stock-portal` when verifying from openclaw.
@@ -86,13 +106,13 @@ The portal parses files produced by two routines. Use these exact specifications
 - Sections (parse by `## heading`): ON SALE, MAJOR EVENT, SENTIMENT SHIFT, WATCHLIST NOTE, CLEAN, Data Issues, Sources
 - Table columns (parse by exact heading names): `Ticker | Alert Type | Near-Term Support | Deep Floor | Downtrend | Sell Target | Notes`
 
-**Weekly screen files** at `/exchange/outbox/openclaw/weekly-screen-{YYYY-MM-DD}.md`:
+**Monthly screen files** at `/exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md`:
 - Sections: Executive Summary, Finalist Recommendations, Scoring Table, Not Recommended, Sources
 - Finalists as `### TICKER` subsections under Finalist Recommendations
 - Per-finalist fields: Sector, Current price and market cap, Yield, 10-year high/low, Cycle position %, Prior recovery, Cyclical macro driver, Income history, P/E, Revenue growth, D/E, FCF, Analyst consensus, Alert threshold
 
 
-### BUILD SIX SCREENS
+### BUILD FOUR SCREENS
 
 
 **1. Alert Dashboard (`index.html`)**
@@ -102,27 +122,17 @@ Reads the latest `/exchange/outbox/openclaw/daily-alert-*.md` file (newest by fi
 
 **2. Watchlist Manager (`watchlist.html`)**
 
-Reads `/exchange/inbox/openclaw/approved_stocks.md`. Displays a read-only table of all tickers with status badges (Active Monitoring, Paused, Removed).
+Reads `/exchange/inbox/openclaw/approved_stocks.md`. Displays a table of all tickers with columns: Ticker, Company, Date Added, Alert Threshold, Notes, Status. Each row includes an **Active Monitoring toggle button** that switches the ticker between Active Monitoring and Paused by calling `PATCH /stock-portal/api/watchlist/:ticker/status`. The button label and style must reflect current state: green "Active" when monitoring is on, grey "Paused" when off. The toggle rewrites the ticker's section in `approved_stocks.md` (moving the row between `## Active Monitoring` and `## Paused`). No Entry Price column.
 
 
 **3. Approval Queue (`approvals.html`)**
 
-Reads pending board approval requests from the Paperclip API. Displays each candidate card with ticker, yield, cycle position, investment thesis, and a link to the full screening report. Read-only — approvals are actioned in the Paperclip board. The Paperclip host is reachable from the container at `http://host.docker.internal` on its API port; read `docs/ops-reference.md` for the exact endpoint, or expose the port via an environment variable `PAPERCLIP_API_URL`.
+Reads pending board approval requests from the Paperclip API. Displays each candidate card with ticker, yield, cycle position, investment thesis, and a link to the full screening report. Read-only — approvals are actioned in the Paperclip board. Use `process.env.PAPERCLIP_API_URL` and `process.env.PAPERCLIP_API_KEY` in `server.js` — both are confirmed available after Step 0.
 
 
 **4. Screening Reports (`screening.html`)**
 
-Lists all `/exchange/outbox/openclaw/weekly-screen-*.md` files newest first. Renders each as styled HTML: Executive Summary at top, then finalist cards (one per `### TICKER` subsection), then the Scoring Table as a sortable HTML table.
-
-
-**5. Portfolio Tracker (`portfolio.html`)**
-
-Reads entry prices from `approved_stocks.md` (the `Entry Price` column; skip tickers with no entry price). Fetches live prices from Yahoo Finance via `server.js` using Node built-in `https` (no npm). Shows unrealised P&L per position with a refresh button.
-
-
-**6. Earnings Calendar (`calendar.html`)**
-
-Reads `/exchange/outbox/opencode/earnings-calendar.md` and shows upcoming earnings dates for all watchlist stocks. If the file does not exist, show: "No earnings calendar found. Run the earnings calendar script to generate it."
+Lists all `/exchange/outbox/openclaw/monthly-screen-*.md` files newest first. Renders each as styled HTML: Executive Summary at top, then finalist cards (one per `### TICKER` subsection), then the Scoring Table as a sortable HTML table.
 
 
 ### API ROUTES
@@ -134,11 +144,10 @@ GET /stock-portal/api/alerts/latest
 GET /stock-portal/api/alerts/history
 GET /stock-portal/api/alerts/:date
 GET /stock-portal/api/watchlist
+PATCH /stock-portal/api/watchlist/:ticker/status
 GET /stock-portal/api/approvals
 GET /stock-portal/api/screening
 GET /stock-portal/api/screening/:date
-GET /stock-portal/api/portfolio
-GET /stock-portal/api/calendar
 ```
 
 
@@ -149,13 +158,12 @@ No npm, no build step, no external CDN. Node.js built-ins only for `server.js`. 
 
 ### BUILD ORDER
 
+0. Verify Paperclip API connectivity (Step 0 above) — do not proceed until HTTP 200 confirmed
 1. `server.js` with all API routes (stub responses first, real data wired in as each screen is built)
 2. Alert Dashboard (`index.html`) — wire to real alert data
-3. Watchlist Manager (`watchlist.html`)
+3. Watchlist Manager (`watchlist.html`) — read + status toggle
 4. Approval Queue (`approvals.html`)
 5. Screening Reports (`screening.html`)
-6. Portfolio Tracker (`portfolio.html`)
-7. Earnings Calendar (`calendar.html`)
 
 Write a `README.md` in `/exchange/outbox/opencode/serve/www/stock-portal/` documenting how to access the portal, all data source paths, and known limitations.
 
@@ -165,9 +173,10 @@ When complete, verify the portal is accessible at `http://opencode:9081/stock-po
 
 ## SUB-TASK B — Routine Setup
 
-Read `skills/paperclip/SKILL.md` for the routines API before registering these routines.
+Read `skills/paperclip/SKILL.md` for the Paperclip routines API.
+Register both routines **in Paperclip only** — do not use the Claude Code /schedule skill or create claude.ai cloud routines under any circumstances.
 
-Check whether each routine already exists before creating it. If a routine for the daily monitor or weekly screener is already registered, skip creating it and note the existing routine ID in your closing comment.
+Check whether each routine already exists before creating it. If a routine for the daily monitor or monthly screener is already registered, skip creating it and note the existing routine ID in your closing comment.
 
 
 ### ROUTINE 1 — Daily Stock Monitor
@@ -233,18 +242,18 @@ When done, post a closing comment listing all flagged tickers grouped by categor
 ```
 
 
-### ROUTINE 2 — Weekly Stock Screener
+### ROUTINE 2 — Monthly Stock Screener
 
-**Trigger:** Sunday, 18:00 local time (cron: `0 18 * * 0`)
+**Trigger:** 1st of each month, 18:00 local time (cron: `0 18 1 * *`)
 **Assigned to:** Financial Research Analyst
-**Concurrency policy:** skip if an issue already exists for this week's date
+**Concurrency policy:** skip if an issue already exists for this month
 
-**Issue title template:** `stock-analyst-weekly-{YYYY-MM-DD}`
+**Issue title template:** `stock-analyst-monthly-{YYYY-MM-DD}`
 
 **Issue body template:**
 
 ```
-Run the weekly stock screening pass for the week of {YYYY-MM-DD}.
+Run the monthly stock screening pass for {YYYY-MM-DD}.
 
 Read /exchange/inbox/openclaw/screening_criteria.md for all criteria: sectors, hard filters, pool size, finalist count, and ranking weights. Do not use hardcoded values.
 
@@ -264,7 +273,7 @@ Rank by criteria in screening_criteria.md (typically: depth into historical cycl
 
 OUTPUT
 
-Write to /exchange/outbox/openclaw/weekly-screen-{YYYY-MM-DD}.md.
+Write to /exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md.
 
 Required sections:
 ## Executive Summary
@@ -279,7 +288,7 @@ BOARD APPROVALS
 For each finalist, file a request_board_approval via the Paperclip API:
 - Title: Add [TICKER] to watchlist? — Cyclical income play
 - Body: one paragraph covering yield, current cycle position (% of 10-year range), and investment thesis
-- Report path: /exchange/outbox/openclaw/weekly-screen-{YYYY-MM-DD}.md
+- Report path: /exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md
 
 Do not file for candidates that did not make the finalist list.
 
@@ -296,6 +305,6 @@ When done:
 
 Close this issue when all three of the following are true:
 
-1. **Portal is live:** `http://opencode:9081/stock-portal` is accessible and all six screens load without errors. The Alert Dashboard renders the latest `daily-alert-*.md` file correctly, showing all five category counts.
-2. **Routines are registered:** Both the Daily Stock Monitor and Weekly Stock Screener routines are active in Paperclip.
+1. **Portal is live:** `http://opencode:9081/stock-portal` is accessible and all four screens load without errors. The Alert Dashboard renders the latest `daily-alert-*.md` file correctly, showing all five category counts. The Watchlist Manager toggle buttons successfully move tickers between Active Monitoring and Paused.
+2. **Routines are registered in Paperclip:** Both the Daily Stock Monitor and Monthly Stock Screener routines are active in Paperclip (verified via the Paperclip routines API). No Claude Code cloud routines (claude.ai/code/routines) have been created as part of this setup.
 3. **Comment posted:** A closing comment lists the portal URL, both routine IDs, and a one-paragraph summary of what was built and registered.

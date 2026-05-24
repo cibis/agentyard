@@ -107,6 +107,8 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
       - AWS_REGION_NAME=${AWS_REGION_NAME}
+      - PAPERCLIP_API_KEY=${PAPERCLIP_API_KEY}
+      - PAPERCLIP_API_URL=${PAPERCLIP_API_URL}
     user: root
     cap_add:
       - ALL
@@ -144,8 +146,8 @@ services:
         mkdir -p /root/.ssh && chmod 700 /root/.ssh
         printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHXqreBmulY4dFDZwQ4SHZwzjkYRp+hrDA7pXPK5Q3Qr opencode-key\n' > /root/.ssh/authorized_keys
         chmod 600 /root/.ssh/authorized_keys
-        printf 'export ANTHROPIC_API_KEY="%s"\nexport AWS_ACCESS_KEY_ID="%s"\nexport AWS_SECRET_ACCESS_KEY="%s"\nexport AWS_REGION="%s"\nexport AWS_DEFAULT_REGION="%s"\n' \
-          "$$ANTHROPIC_API_KEY" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" "$$AWS_REGION" "$$AWS_DEFAULT_REGION" \
+        printf 'export ANTHROPIC_API_KEY="%s"\nexport AWS_ACCESS_KEY_ID="%s"\nexport AWS_SECRET_ACCESS_KEY="%s"\nexport AWS_REGION="%s"\nexport AWS_DEFAULT_REGION="%s"\nexport PAPERCLIP_API_URL="%s"\nexport PAPERCLIP_API_KEY="%s"\n' \
+          "$$ANTHROPIC_API_KEY" "$$AWS_ACCESS_KEY_ID" "$$AWS_SECRET_ACCESS_KEY" "$$AWS_REGION" "$$AWS_DEFAULT_REGION" "$$PAPERCLIP_API_URL" "$$PAPERCLIP_API_KEY" \
           >> /root/.bashrc
         if [ -f /exchange/outbox/opencode/serve/server.js ]; then
           node /exchange/outbox/opencode/serve/server.js &
