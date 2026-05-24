@@ -67,6 +67,8 @@ The portal is served by `server.js` (Node.js built-ins only, no npm) with 9 API 
 ![MIN-9 closed by CEO agent](docs/screenshots/min9-paperclip-done.jpg)
 ![Stock Advisory Portal — Watchlist Manager](docs/screenshots/stock-portal-watchlist.jpg)
 
+> **Note — manual corrections required:** Paperclip currently struggles to set up recurring routines correctly on its own. In this test, both routines were created with generic titles and bare descriptions instead of the required templates. All issues required manual correction via the Paperclip UI after the fact. Treat the setup document as the authoritative spec and verify routine configuration after any automated setup.
+
 ---
 
 ## Architecture

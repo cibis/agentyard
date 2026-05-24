@@ -46,7 +46,7 @@ Every ticker entry in sections ON SALE through CLEAN must use this exact table s
 
 ### Monthly Screen Files
 
-**Path:** `/exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md`
+**Path:** `/exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md` (may include a suffix after the date, e.g. `monthly-screen-2026-05-24-MIN-94.md` — the portal tolerates this)
 **Glob pattern used by portal:** `monthly-screen-*.md`
 
 Required sections:
@@ -62,6 +62,24 @@ Required sections:
 Each `### TICKER` subsection must include: Sector, Current price and market cap, Dividend/distribution yield, 10-year high and low, Current price position as % of that range, Prior recovery evidence, Cyclical macro driver, Income history across cycles, Key metrics (P/E, revenue growth, D/E, FCF), Key risks, Analyst consensus and count, Suggested alert threshold.
 
 The Scoring Table covers all candidates that passed hard filters, with ranking criteria as columns. The Not Recommended table lists exclusions with the specific failing filter.
+
+### Approvals File
+
+**Path:** `/exchange/outbox/openclaw/approvals.json`
+**Written by:** Financial Research Analyst at the end of each monthly screening run (overwritten each run)
+
+```json
+[
+  {
+    "ticker": "TICKER",
+    "title": "Add [TICKER] to watchlist? — Cyclical income play",
+    "summary": "one paragraph: yield, cycle position, investment thesis",
+    "status": "pending",
+    "created_at": "ISO-8601 timestamp",
+    "screening_report": "monthly-screen-YYYY-MM-DD[suffix].md"
+  }
+]
+```
 
 ---
 
@@ -127,7 +145,7 @@ Reads `/exchange/inbox/openclaw/approved_stocks.md`. Displays a table of all tic
 
 **3. Approval Queue (`approvals.html`)**
 
-Reads pending board approval requests from the Paperclip API. Displays each candidate card with ticker, yield, cycle position, investment thesis, and a link to the full screening report. Read-only — approvals are actioned in the Paperclip board. Use `process.env.PAPERCLIP_API_URL` and `process.env.PAPERCLIP_API_KEY` in `server.js` — both are confirmed available after Step 0.
+Reads `/exchange/outbox/openclaw/approvals.json` via `GET /stock-portal/api/approvals`. Displays each candidate card with ticker, yield, cycle position, and investment thesis. Read-only — the file is written by the Financial Research Analyst after each monthly screening run. If the file is absent or empty, show an empty-state message.
 
 
 **4. Screening Reports (`screening.html`)**
@@ -176,14 +194,15 @@ When complete, verify the portal is accessible at `http://opencode:9081/stock-po
 Read `skills/paperclip/SKILL.md` for the Paperclip routines API.
 Register both routines **in Paperclip only** — do not use the Claude Code /schedule skill or create claude.ai cloud routines under any circumstances.
 
-Check whether each routine already exists before creating it. If a routine for the daily monitor or monthly screener is already registered, skip creating it and note the existing routine ID in your closing comment.
+Before creating each routine, call the Paperclip routines list endpoint and look for a routine whose name matches the **Routine name** field below. If one is found, skip creation and note the existing routine ID in your closing comment. Do NOT use issue existence as a proxy for routine existence — the two checks are unrelated.
 
 
 ### ROUTINE 1 — Daily Stock Monitor
 
 **Trigger:** Monday–Friday, 07:00 local time (cron: `0 7 * * 1-5`)
 **Assigned to:** Stock Watch Analyst
-**Concurrency policy:** skip if an issue already exists for today's date
+**Routine name:** `daily-stock-monitor`
+**concurrencyPolicy (API field to pass on creation):** skip — deduplication key: open issue whose title matches `stock-watcher-daily-{YYYY-MM-DD}` (today's date)
 
 **Issue title template:** `stock-watcher-daily-{YYYY-MM-DD}`
 
@@ -246,7 +265,8 @@ When done, post a closing comment listing all flagged tickers grouped by categor
 
 **Trigger:** 1st of each month, 18:00 local time (cron: `0 18 1 * *`)
 **Assigned to:** Financial Research Analyst
-**Concurrency policy:** skip if an issue already exists for this month
+**Routine name:** `monthly-stock-screener`
+**concurrencyPolicy (API field to pass on creation):** skip — deduplication key: open issue whose title matches `stock-analyst-monthly-{YYYY-MM}*` (current month prefix)
 
 **Issue title template:** `stock-analyst-monthly-{YYYY-MM-DD}`
 
@@ -255,18 +275,20 @@ When done, post a closing comment listing all flagged tickers grouped by categor
 ```
 Run the monthly stock screening pass for {YYYY-MM-DD}.
 
+**Time budget: 18 minutes.** Manage scope throughout every step to stay within this limit.
+
 Read /exchange/inbox/openclaw/screening_criteria.md for all criteria: sectors, hard filters, pool size, finalist count, and ranking weights. Do not use hardcoded values.
 
 Do not recommend any ticker already listed under Active Monitoring in /exchange/inbox/openclaw/approved_stocks.md.
 
 STEP 1 — BUILD CANDIDATE POOL
-Use web_search to identify publicly traded companies matching the cyclical income profile in screening_criteria.md. Save tickers to /exchange/scratch/openclaw/candidates.txt. Target the pool size from the criteria file (typically 15-25 stocks).
+Use web_search to identify publicly traded companies matching the cyclical income profile in screening_criteria.md. Save tickers to /exchange/scratch/openclaw/candidates.txt. Cap the pool at 10 tickers regardless of what the criteria file specifies. If your search yields more candidates, drop the weakest sector/yield matches first until you have 10 or fewer.
 
 STEP 2 — HARD FILTER PASS
-For each candidate, fetch fundamentals via Yahoo Finance quoteSummary with modules: price, summaryDetail, financialData, defaultKeyStatistics, incomeStatementHistory, recommendationTrend, upgradeDowngradeHistory. Add sleep 1 between requests. Apply every hard filter from screening_criteria.md. Record the specific failing filter for each exclusion.
+For each candidate, fetch fundamentals via Yahoo Finance quoteSummary with modules: price, summaryDetail, financialData, defaultKeyStatistics, incomeStatementHistory, recommendationTrend, upgradeDowngradeHistory. Add sleep 0.5 between requests. Apply every hard filter from screening_criteria.md. Record the specific failing filter for each exclusion.
 
 STEP 3 — QUALITATIVE RESEARCH
-For each candidate that passes hard filters, research: price cycle history and evidence of prior recoveries, distribution history across upcycles and downcycles, business model and cash flow characteristics, current position in the historical cycle.
+For each candidate that passes hard filters, run at most 2 web searches: one combining cycle position and sector history, one for distribution history across cycles. Do not run additional searches per candidate. Research: price cycle history and evidence of prior recoveries, distribution history across upcycles and downcycles, business model and cash flow characteristics, current position in the historical cycle. If you reach the 17-minute mark before finishing all candidates, stop qualitative research immediately, list unresearched tickers in the Not Recommended section with reason "time limit", and proceed to STEP 4 with candidates researched so far.
 
 STEP 4 — SELECT FINALISTS
 Rank by criteria in screening_criteria.md (typically: depth into historical cycle low, income yield, prior recovery strength). Select up to the finalist count specified.
@@ -285,16 +307,22 @@ Required sections:
 
 BOARD APPROVALS
 
-For each finalist, file a request_board_approval via the Paperclip API:
-- Title: Add [TICKER] to watchlist? — Cyclical income play
-- Body: one paragraph covering yield, current cycle position (% of 10-year range), and investment thesis
-- Report path: /exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md
+Write /exchange/outbox/openclaw/approvals.json. Overwrite the file — do not append.
+Format: JSON array, one object per finalist:
+  {
+    "ticker": "TICKER",
+    "title": "Add [TICKER] to watchlist? — Cyclical income play",
+    "summary": "one paragraph covering yield, current cycle position (% of 10-year range), and investment thesis",
+    "status": "pending",
+    "created_at": "<ISO-8601 timestamp>",
+    "screening_report": "monthly-screen-{YYYY-MM-DD}[suffix].md"
+  }
 
-Do not file for candidates that did not make the finalist list.
+Do not include candidates that did not make the finalist list.
 
 When done:
-1. Post a closing comment listing each finalist with ticker, yield, cycle position, and approval ID
-2. Confirm all request_board_approval calls were filed
+1. Post a closing comment listing each finalist with ticker, yield, and cycle position
+2. Confirm approvals.json was written with N entries
 3. Delete /exchange/scratch/openclaw/candidates.txt
 4. Close this issue
 ```

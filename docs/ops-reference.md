@@ -329,7 +329,7 @@ docker exec openclaw sh -c "ls /exchange/outbox/openclaw/"
 |-----------|---------------|-------|
 | `./shared/` | `/exchange/` | Full file exchange |
 | `./shared/inbox/openclaw/` | `/exchange/inbox/openclaw/` | Agent reads approved_stocks.md, screening_criteria.md |
-| `./shared/outbox/openclaw/` | `/exchange/outbox/openclaw/` | Agent writes daily-alert-*.md, weekly-screen-*.md |
+| `./shared/outbox/openclaw/` | `/exchange/outbox/openclaw/` | Agent writes daily-alert-*.md, monthly-screen-*.md |
 | `./shared/scratch/openclaw/` | `/exchange/scratch/openclaw/` | Ephemeral work (cleaned up after tasks) |
 | `./shared/workspace/openclaw/<agent>/AGENTS.md` | `/exchange/workspace/openclaw/<agent>/AGENTS.md` | Per-agent instructions (read-only mount) |
 | `./skills/` | `/app/skills/agentyard/` | All skills — scanned recursively |
@@ -385,6 +385,41 @@ Model providers are in `config/openclaw.json`. To add or change a model:
 ```
 
 Valid root keys: `gateway`, `models`, `agents`, `mcpServers`. Invalid: `agent` (must be `agents`), `baseURL` (must be `baseUrl`).
+
+### Reset openclaw memory
+
+openclaw's persistent state lives in two places:
+
+| Storage | What it holds |
+|---------|---------------|
+| Docker volume `agentyard_openclaw-workspace` → `/root/.openclaw/workspace` | Agent internal state: MEMORY.md, IDENTITY.md, SOUL.md, TOOLS.md, USER.md, HEARTBEAT.md, workspace-state.json, finance data caches |
+| `./shared/workspace/openclaw/` → `/exchange/workspace/openclaw/` | Per-agent state files written by agents during operation |
+
+**Not affected by a reset:** `config/openclaw.json`, `config/openclaw-workspace/AGENTS.md`, `shared/inbox/openclaw/` (watchlist, screening criteria), `shared/outbox/openclaw/` (past results).
+
+```powershell
+# 1. Stop the container
+docker compose stop openclaw
+
+# 2. Remove the container so the volume is no longer in use
+docker compose rm -f openclaw
+
+# 3. Remove the named volume
+docker volume rm agentyard_openclaw-workspace
+
+# 4. (Optional) Clear per-agent state from the shared bind mount
+Remove-Item -Recurse -Force .\shared\workspace\openclaw\stock-watch-analyst
+Remove-Item -Recurse -Force .\shared\workspace\openclaw\financial-research-analyst
+
+# 5. Restart — Docker Compose recreates the volume fresh
+docker compose up -d openclaw
+
+# 6. Verify
+docker compose ps
+docker logs openclaw --tail 20
+```
+
+The agent bootstraps from its `AGENTS.md` instructions on the next task submitted via Paperclip.
 
 ---
 
@@ -509,7 +544,7 @@ Key files the agents read and write:
 | `/exchange/inbox/openclaw/approved_stocks.md` | StockWatcher, FinancialResearchAnalyst | Read — active watchlist |
 | `/exchange/inbox/openclaw/screening_criteria.md` | StockWatcher, FinancialResearchAnalyst | Read — all thresholds and filters |
 | `/exchange/outbox/openclaw/daily-alert-{YYYY-MM-DD}.md` | StockWatcher | Write |
-| `/exchange/outbox/openclaw/weekly-screen-{YYYY-MM-DD}.md` | FinancialResearchAnalyst | Write |
+| `/exchange/outbox/openclaw/monthly-screen-{YYYY-MM-DD}.md` | FinancialResearchAnalyst | Write |
 | `/exchange/scratch/openclaw/candidates.txt` | FinancialResearchAnalyst | Write (cleaned up after run) |
 | `/exchange/outbox/opencode/serve/server.js` | FullStackDeveloper | Write — the portal server |
 | `/exchange/outbox/opencode/serve/www/stock-portal/` | FullStackDeveloper | Write — portal static files |
