@@ -46,7 +46,7 @@ The stack is designed around **role-separated agents** — each agent has a dist
 
 ### Test setup — Stock Advisory Portal
 
-The stack was run end-to-end to validate the multi-agent collaboration pattern. Four agents played distinct roles:
+The stack was run end-to-end to validate the multi-agent collaboration pattern. The file [docs/examples/paperclip-task-advisory-system-setup.md](docs/examples/paperclip-task-advisory-system-setup.md) contains the exact issue body submitted to Paperclip — portal build spec, routine schedules, file format contracts, and completion criteria. The CEO agent received it as a task and orchestrated the rest from there. Four agents played distinct roles:
 
 | Agent | Platform | Role |
 |---|---|---|
