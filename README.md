@@ -40,7 +40,7 @@ The stack is designed around **role-separated agents** — each agent has a dist
 |---|---|
 | Live stock quotes & OHLCV data | Yahoo Finance skill (curl/node, no API key needed) |
 | Web research & news | Brave Search built-in plugin (auto-enabled via `BRAVE_API_KEY`) |
-| Financial analysis & reports | openclaw domain agents reason over data; output written to `/exchange/outbox/` |
+| Financial analysis & reports | openclaw domain agents reason over data; daily alerts and monthly screens written to `/exchange/outbox/` |
 | Custom UI dashboards & APIs | opencode dev agent builds and serves pages/APIs on request, browser-accessible at port 9081 |
 | Cross-agent data flow | All agents share `/exchange` — domain agents write reports, dev agent reads them into UIs |
 
@@ -55,16 +55,14 @@ The stack was run end-to-end to validate the multi-agent collaboration pattern. 
 | Financial Research Analyst | openclaw | Deep-dive research; produces weekly screening reports |
 | Full Stack Developer | opencode | Builds and serves browser-accessible pages and APIs on demand |
 
-The CEO agent tasked the Full Stack Developer with building a portal to surface the analyst agents' output. The dev agent autonomously built and deployed a 6-screen **Stock Advisory Portal** at `http://localhost:9081/stock-portal/`:
+The CEO agent tasked the Full Stack Developer with building a portal to surface the analyst agents' output. The dev agent autonomously built and deployed a 4-screen **Stock Advisory Portal** at `http://localhost:9081/stock-portal`:
 
-- **Alert Dashboard** — reads latest `daily-alert-*.md` report from openclaw outbox
-- **Watchlist Manager** — reads `approved_stocks.md` (28 active tickers on first deploy)
-- **Approval Queue** — reads pending board approvals from Paperclip
-- **Screening Reports** — lists all `weekly-screen-*.md` files
-- **Portfolio Tracker** — tracks positions and performance
-- **Earnings Calendar** — upcoming earnings for watchlist tickers
+- **Alert Dashboard** — reads latest `daily-alert-*.md` report from openclaw outbox; category counts and collapsible tables
+- **Watchlist Manager** — reads `approved_stocks.md`; view and toggle Active/Paused monitoring status per ticker
+- **Approval Queue** — read-only view of pending board approval requests from Paperclip
+- **Screening Reports** — monthly fundamental screens with finalist cards and sortable scoring table (`monthly-screen-*.md`)
 
-The portal is served by `server.js` (Node.js built-ins only, no npm) with 8 API routes, registered as `stock-portal` in `serve-process.json`. The Paperclip task (MIN-9) closed automatically once the agent verified the portal was accessible and posted the URL as a comment.
+The portal is served by `server.js` (Node.js built-ins only, no npm) with 9 API routes, registered as `stock-portal` in `serve-process.json`. The Paperclip task (MIN-9) closed automatically once the agent verified the portal was accessible and posted the URL as a comment.
 
 ![MIN-9 closed by CEO agent](docs/screenshots/min9-paperclip-done.jpg)
 ![Stock Advisory Portal — Watchlist Manager](docs/screenshots/stock-portal-watchlist.jpg)
